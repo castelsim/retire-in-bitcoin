@@ -9,7 +9,7 @@
 <body>
   <header>
     <h1>Pensione in Bitcoin</h1>
-    <p class="subtitle">Quanti BTC ti servono per andare in pensione? Calcolo reale con decumulo fino a 100 anni.</p>
+    <p class="subtitle">Quanti BTC ti servono per andare in pensione? Calcolo reale con decumulo<span class="tip" data-tip="Fase in cui si spende progressivamente il patrimonio accumulato (opposto all'accumulo). Il modello garantisce che i BTC durino fino ai 100 anni.">?</span> fino a 100 anni.</p>
   </header>
 
   <main>
@@ -59,7 +59,7 @@
           <summary>Opzioni avanzate</summary>
 
           <div class="field">
-            <label>Tempistica prelievi</label>
+            <label>Tempistica prelievi <span class="tip" data-tip="Inizio anno (annuità-due): la spesa avviene il 1° gennaio — leggermente più conservativa. Fine anno (annuità ordinaria): la spesa avviene il 31 dicembre, il capitale lavora un anno in più.">?</span></label>
             <div class="radio-row">
               <label><input type="radio" name="drawTiming" id="drawStart" value="start" checked /> Inizio anno</label>
               <label><input type="radio" name="drawTiming" id="drawEnd" value="end" /> Fine anno</label>
@@ -67,7 +67,7 @@
           </div>
 
           <div class="field">
-            <label for="safety">Margine di sicurezza</label>
+            <label for="safety">Margine di sicurezza <span class="tip" data-tip="Riserva extra sul BTC target. Con +20%, se il modello dice che ti servono 0,5 BTC il target diventa 0,6 BTC. Protegge da inflazione più alta del previsto o rendimenti BTC più bassi.">?</span></label>
             <select id="safety">
               <option value="0" selected>0%</option>
               <option value="0.10">+10%</option>
@@ -79,17 +79,17 @@
           <div class="field">
             <label class="checkbox-label">
               <input type="checkbox" id="twoStage" />
-              Usa doppio rendimento in pensione
+              Usa doppio rendimento in pensione <span class="tip" data-tip="Divide la fase di prelievo in 2 periodi con rendimenti BTC diversi. Utile se prevedi di spostare parte del patrimonio in asset più conservativi (bond, liquidità) dopo i primi anni di pensione.">?</span>
             </label>
           </div>
 
           <div id="twoStageRows" class="hidden">
             <div class="field">
-              <label for="stageYears">Anni Fase 1</label>
+              <label for="stageYears">Anni Fase 1 <span class="tip" data-tip="Durata della prima fase di prelievo: per questi anni si usa il rendimento BTC dello scenario selezionato. Dopo si passa al rendimento più basso della Fase 2.">?</span></label>
               <input id="stageYears" type="number" min="1" max="50" value="15" />
             </div>
             <div class="field">
-              <label for="stage2Real">Rendimento reale Fase 2 (%)</label>
+              <label for="stage2Real">Rendimento reale Fase 2 (%) <span class="tip" data-tip="Rendimento annuo reale (già al netto dell'inflazione) per la seconda fase. Un valore basso simula un portafoglio conservativo nella tarda pensione: es. 2-3% per obbligazioni, 0% per liquidità.">?</span></label>
               <input id="stage2Real" type="number" step="0.1" min="-5" max="15" value="5" />
             </div>
           </div>
@@ -122,6 +122,6 @@
     <p>Annuity reale &middot; S(t) indicizzata all'inflazione &middot; P<sub>BTC</sub>(t) proiettato con CAGR</p>
   </footer>
 
-  <script src="script.js?v=20260527"></script>
+  <script src="script.js?v=20260527d"></script>
 </body>
 </html>

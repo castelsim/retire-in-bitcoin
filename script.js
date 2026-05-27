@@ -270,10 +270,10 @@ $form.addEventListener('submit', e => {
     <div class="pill"><strong>Paese:</strong> ${country}</div>
     <div class="pill"><strong>Eta:</strong> ${age} anni</div>
     <div class="pill"><strong>Pensione:</strong> ${retYear} (eta ${ageAtRet})</div>
-    <div class="pill"><strong>Orizzonte:</strong> ${N} anni (fino a 100)</div>
+    <div class="pill"><strong>Orizzonte:</strong> ${N} anni (fino a 100) <span class="tip" data-tip="Anni di pensione da coprire: dalla data di ritiro fino ai 100 anni. Il modello calcola quanti BTC servono per sostenere la spesa per tutta questa durata.">?</span></div>
     <div class="pill"><strong>Budget:</strong> ${c.sym} ${fmt(annualBudget)}/anno</div>
     <div class="pill"><strong>BTC oggi:</strong> ${c.sym} ${fmt(btcNow)}</div>
-    <div class="pill"><strong>Inflazione ${country}:</strong> ${fmtPct(c.infl)}</div>
+    <div class="pill"><strong>Inflazione ${country}:</strong> ${fmtPct(c.infl)} <span class="tip" data-tip="Tasso di inflazione medio annuo del paese (fonte BCE/Eurostat 2025). La spesa in pensione viene indicizzata ogni anno: vivere nel 2040 costerà più che oggi.">?</span></div>
     ${safety > 0 ? `<div class="pill"><strong>Safety:</strong> +${Math.round(safety * 100)}%</div>` : ''}
   `;
 
@@ -301,7 +301,7 @@ $form.addEventListener('submit', e => {
     const dca = calcMonthlyDCA(btcNeededSafe, stack, btcNow, sc.g, yearsToRet);
     const dcaLine = dca === null ? '' :
       dca === 0 ? `<div class="ok meta">Stack sufficiente - DCA non necessario</div>` :
-      `<div class="meta dca-line">DCA stimato: <strong>${c.sym} ${fmt(dca)}/mese</strong> <span class="hint-dca">(prezzo medio stimato)</span></div>`;
+      `<div class="meta dca-line">DCA stimato <span class="tip" data-tip="Dollar-Cost Averaging: quanto investire ogni mese per accumulare i BTC necessari entro l'anno di pensione. Stima basata sul prezzo medio BTC lungo il periodo (media geometrica tra prezzo attuale e prezzo a scadenza).">?</span>: <strong>${c.sym} ${fmt(dca)}/mese</strong> <span class="hint-dca">(prezzo medio stimato)</span></div>`;
 
     // Stack analysis
     let stackLine = '';
@@ -320,12 +320,12 @@ $form.addEventListener('submit', e => {
       <div class="card-scenario" style="--accent-sc:${sc.color}">
         <div class="scenario-header">
           <h3>${sc.key}</h3>
-          <span class="cagr-badge">${(sc.g * 100).toFixed(0)}% CAGR</span>
+          <span class="cagr-badge">${(sc.g * 100).toFixed(0)}% CAGR <span class="tip" data-tip="Tasso di crescita annuo composto di Bitcoin in questo scenario. Con il 20% CAGR il prezzo raddoppia ogni ~3,8 anni. Scenari basati su modelli power-law e storico BTC.">?</span></span>
         </div>
         <div class="big">${fmtBTC(btcNeededSafe)} BTC</div>
         <div class="meta">${c.sym} ${fmt(btcNeededSafe * btcNow)} oggi &middot; ${c.sym} ${fmt(btcNeededSafe * btcRet)} a ${retYear}</div>
         <div class="meta">Spesa ${retYear}: ${c.sym} ${fmt(spendRet)} &middot; P<sub>BTC</sub>: ${c.sym} ${fmt(btcRet)}</div>
-        <div class="meta">r reale: ${fmtPct(rReal)}</div>
+        <div class="meta">r reale <span class="tip" data-tip="Rendimento reale = rendimento BTC al netto dell'inflazione del paese. Formula: (1 + CAGR) ÷ (1 + inflazione) − 1. Misura la crescita effettiva del potere d'acquisto.">?</span>: ${fmtPct(rReal)}</div>
         ${dcaLine}
         ${stackLine}
       </div>
@@ -335,4 +335,52 @@ $form.addEventListener('submit', e => {
   // Disclaimer dinamico
   document.getElementById('disclaimerInfl').textContent =
     `Inflazione ${country}: ${fmtPct(c.infl)} (fonte: BCE/Eurostat 2025). CAGR BTC: 10% / 20% / 30%. Non e consulenza finanziaria.`;
+});
+
+// ---------- Tooltip engine
+const _tipEl = document.createElement('div');
+_tipEl.className = 'tip-box';
+_tipEl.setAttribute('role', 'tooltip');
+document.body.appendChild(_tipEl);
+let _tipTimer = null;
+
+function _showTip(anchor) {
+  clearTimeout(_tipTimer);
+  _tipEl.textContent = anchor.dataset.tip || '';
+  const vw = window.innerWidth;
+  const w = Math.min(260, vw - 16);
+  _tipEl.style.width = w + 'px';
+  _tipEl.style.top = '0px';
+  _tipEl.style.left = '0px';
+  _tipEl.classList.add('visible');
+  const h = _tipEl.offsetHeight;
+  const r = anchor.getBoundingClientRect();
+  let top = r.top - h - 10;
+  if (top < 8) top = r.bottom + 10;
+  let left = r.left + r.width / 2 - w / 2;
+  left = Math.max(8, Math.min(left, vw - w - 8));
+  _tipEl.style.top = top + 'px';
+  _tipEl.style.left = left + 'px';
+}
+
+function _hideTip() {
+  _tipTimer = setTimeout(() => _tipEl.classList.remove('visible'), 80);
+}
+
+document.addEventListener('mouseenter', e => {
+  if (e.target.classList.contains('tip')) _showTip(e.target);
+}, true);
+document.addEventListener('mouseleave', e => {
+  if (e.target.classList.contains('tip')) _hideTip();
+}, true);
+document.addEventListener('click', e => {
+  const t = e.target.closest('.tip');
+  if (t) {
+    e.stopPropagation();
+    (_tipEl.classList.contains('visible') && _tipEl.textContent === t.dataset.tip)
+      ? _hideTip()
+      : _showTip(t);
+    return;
+  }
+  _hideTip();
 });

@@ -199,6 +199,49 @@ input[aria-invalid="false"] { border-color: rgba(6,214,160,.35); }
 
 footer { text-align: center; color: var(--muted); padding: 12px 0 28px; font-size: .85rem; }
 
+/* Tooltip */
+.tip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255,209,102,.12);
+  border: 1px solid rgba(255,209,102,.28);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: help;
+  vertical-align: middle;
+  margin-left: 5px;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: background .15s;
+  user-select: none;
+}
+.tip:hover { background: rgba(255,209,102,.25); }
+
+.tip-box {
+  position: fixed;
+  z-index: 300;
+  max-width: 260px;
+  background: #1a2736;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text);
+  font-weight: 400;
+  box-shadow: 0 8px 28px rgba(0,0,0,.55);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease;
+  white-space: normal;
+}
+.tip-box.visible { opacity: 1; }
+
 @media print {
   body { background: #fff; color: #000; }
   .card { box-shadow: none; border-color: #ccc; background: #fff; }
