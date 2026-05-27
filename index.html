@@ -3,53 +3,56 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BTC per la Pensione – Italia & Polonia</title>
+  <title>Pensione in Bitcoin</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
-    <h1>Bitcoin necessari per la pensione</h1>
-    <p class="subtitle">Decumulo fino a 100 anni • prezzi e inflazione per paese • 3 scenari BTC</p>
+    <h1>Pensione in Bitcoin</h1>
+    <p class="subtitle">Quanti BTC ti servono per andare in pensione? Calcolo reale con decumulo fino a 100 anni.</p>
   </header>
 
   <main>
     <section class="card">
       <form id="planner">
+
         <div class="field">
-          <label for="country">Paese</label>
+          <label for="country">Paese di residenza</label>
           <select id="country" required></select>
         </div>
 
         <div class="field">
-          <label for="age">Età attuale: <span id="ageVal">35</span></label>
+          <label for="age">Eta attuale: <span id="ageVal">35</span> anni</label>
           <input id="age" type="range" min="18" max="80" step="1" value="35" />
         </div>
 
         <div class="field">
-          <label for="retYear">Anno in cui vuoi andare in pensione</label>
-          <input id="retYear" type="number" min="2025" max="2100" value="2035" />
+          <label for="retYear">Anno di pensione</label>
+          <input id="retYear" type="number" min="2025" max="2100" value="2040" />
         </div>
 
         <div class="field">
-          <label for="lifestyle">Stile di vita (importo annuo per persona)</label>
+          <label for="lifestyle">Stile di vita (annuo per persona)</label>
           <select id="lifestyle">
-            <option value="essenziale">Essenziale</option>
-            <option value="base" selected>Base / Moderato</option>
-            <option value="confortevole">Confortevole</option>
+            <option value="essenziale">Essenziale - minimo dignitoso</option>
+            <option value="base" selected>Base - vita normale</option>
+            <option value="confortevole">Confortevole - qualita alta</option>
             <option value="custom">Personalizzato</option>
           </select>
         </div>
 
         <div class="field hidden" id="customRow">
-          <label for="customAnnual">Importo annuo personalizzato (<span id="curSym">€</span>)</label>
-          <input id="customAnnual" type="number" min="0" step="1" placeholder="es. 24000" />
-          <small>Importo lordo/anno, indicizzato con l'inflazione del paese fino all'anno di pensione.</small>
+          <label for="customAnnual">Importo annuo (<span id="curSym">€</span>)</label>
+          <input id="customAnnual" type="number" min="0" step="500" placeholder="es. 20000" />
         </div>
 
         <div class="field">
-          <label for="btcNow">Prezzo BTC oggi (<span id="curSymBtc">€</span>)</label>
+          <label for="btcNow">
+            Prezzo BTC oggi (<span id="curSymBtc">€</span>)
+            <span id="priceIndicator" class="price-badge">--</span>
+          </label>
           <input id="btcNow" type="number" min="1000" step="100" />
-          <small>Useremo questo prezzo come base per proiettare P<sub>BTC</sub> all'anno di pensione.</small>
+          <small>Aggiornato automaticamente da CoinGecko. Modificabile manualmente.</small>
         </div>
 
         <details class="field">
@@ -57,13 +60,9 @@
 
           <div class="field">
             <label>Tempistica prelievi</label>
-            <div>
-              <label style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;">
-                <input type="radio" name="drawTiming" id="drawStart" value="start" checked /> Inizio anno (annuity due)
-              </label>
-              <label style="display:inline-flex;align-items:center;gap:6px;">
-                <input type="radio" name="drawTiming" id="drawEnd" value="end" /> Fine anno (ordinaria)
-              </label>
+            <div class="radio-row">
+              <label><input type="radio" name="drawTiming" id="drawStart" value="start" checked /> Inizio anno</label>
+              <label><input type="radio" name="drawTiming" id="drawEnd" value="end" /> Fine anno</label>
             </div>
           </div>
 
@@ -75,33 +74,33 @@
               <option value="0.20">+20%</option>
               <option value="0.30">+30%</option>
             </select>
-            <small>Aggiunge un cuscinetto percentuale ai BTC necessari.</small>
           </div>
 
           <div class="field">
-            <label style="display:inline-flex;align-items:center;gap:8px;">
-              <input type="checkbox" id="twoStage" /> Usa doppio rendimento in pensione
+            <label class="checkbox-label">
+              <input type="checkbox" id="twoStage" />
+              Usa doppio rendimento in pensione
             </label>
-            <small>Fase 1 a rendimento dello scenario, poi Fase 2 con rendimento reale di lungo periodo.</small>
           </div>
 
           <div id="twoStageRows" class="hidden">
             <div class="field">
               <label for="stageYears">Anni Fase 1</label>
-              <input id="stageYears" type="number" min="1" max="100" value="15" />
+              <input id="stageYears" type="number" min="1" max="50" value="15" />
             </div>
             <div class="field">
-              <label for="stage2Real">Rendimento reale Fase 2 (oltre inflazione)</label>
+              <label for="stage2Real">Rendimento reale Fase 2 (%)</label>
               <input id="stage2Real" type="number" step="0.1" min="-5" max="15" value="5" />
-              <small>Valore in %. Esempio: 5 ⇒ 5% reale oltre inflazione del paese.</small>
             </div>
           </div>
         </details>
 
         <details class="field">
-          <summary>Opzionale: calcola rispetto ai BTC che possiedi</summary>
-          <label for="stack">BTC che possiedi</label>
-          <input id="stack" type="number" step="0.00000001" min="0" placeholder="es. 0.25" />
+          <summary>Il tuo stack attuale (opzionale)</summary>
+          <div class="field">
+            <label for="stack">BTC che possiedi</label>
+            <input id="stack" type="number" step="0.0001" min="0" placeholder="es. 0.25" />
+          </div>
         </details>
 
         <button type="submit">Calcola</button>
@@ -109,19 +108,20 @@
     </section>
 
     <section class="card output">
-      <h2>Risultati (3 scenari)</h2>
+      <h2>Risultati - 3 scenari</h2>
       <div id="kpi" class="kpi"></div>
       <div id="cards" class="cards"></div>
       <div class="disclaimer">
-        <p><strong>Note:</strong> Calcolo in termini reali con annuity factor e decumulo fino a 100 anni. Inflazione: 2% IT • 2,5% PL. Scenari BTC: 10% / 20% / 30% CAGR. Non è consulenza finanziaria.</p>
+        <p id="disclaimerInfl">Calcolo in termini reali con annuity factor. Non e consulenza finanziaria.</p>
+        <p>Fonti: ISTAT 2025, Numbeo 2025, Eurostat 2025, CoinGecko (live). Modello: annuity reale fino a 100 anni.</p>
       </div>
     </section>
   </main>
 
   <footer>
-    <p>Modello: annuity reale su N anni • S(t) indicizzata all'inflazione • P<sub>BTC</sub>(t) proiettato con CAGR. Italia & Polonia.</p>
+    <p>Annuity reale &middot; S(t) indicizzata all'inflazione &middot; P<sub>BTC</sub>(t) proiettato con CAGR</p>
   </footer>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=20260527"></script>
 </body>
 </html>

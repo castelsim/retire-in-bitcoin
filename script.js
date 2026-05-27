@@ -1,70 +1,78 @@
-// ================================
-// Pensione in BTC – Italia & Polonia (MVP realistico)
+// ===================================================
+// Pensione in BTC - Calcolatore multi-paese
 // Modello: annuity reale con decumulo fino a 100 anni
-// ================================
+// Prezzo live: CoinGecko API (nessuna chiave richiesta)
+// Dati spesa: ISTAT 2025, Numbeo 2025, Eurostat 2025
+// ===================================================
 
 const NOW_YEAR = new Date().getFullYear();
 
-// Dati paese (valute, inflazione target, prezzo BTC di base, stili di vita annui per persona)
+// Dati paese: valuta, inflazione target, stili di vita (importo annuo/persona)
+// Fonti: ISTAT 2025 (IT), Numbeo 2025, GlobalCitizenSolutions 2025, Eurostat
 const COUNTRIES = {
   "Italia": {
-    currency: "EUR",
-    infl: 0.02, // target BCE
-    btcNow: 102000, // default, modificabile da UI
-    styles: {
-      essenziale: 12889,     // €/anno
-      base: 23664,
-      confortevole: 34419
-    }
+    currency: "EUR", sym: "€",
+    infl: 0.015,  // BCE 2026: +1.4% perequazione; BCE target 2%
+    btcDefault: null, // sovrascritta da live price
+    styles: { essenziale: 12000, base: 18000, confortevole: 28000 }
+  },
+  "Germania": {
+    currency: "EUR", sym: "€",
+    infl: 0.022,  // Destatis 2025: ~2.2%
+    btcDefault: null,
+    styles: { essenziale: 16000, base: 24000, confortevole: 34000 }
+  },
+  "Spagna": {
+    currency: "EUR", sym: "€",
+    infl: 0.020,  // INE 2025
+    btcDefault: null,
+    styles: { essenziale: 12000, base: 18000, confortevole: 26000 }
+  },
+  "Portogallo": {
+    currency: "EUR", sym: "€",
+    infl: 0.020,  // INE Portugal 2025
+    btcDefault: null,
+    styles: { essenziale: 10000, base: 15000, confortevole: 22000 }
+  },
+  "Francia": {
+    currency: "EUR", sym: "€",
+    infl: 0.018,  // INSEE 2025
+    btcDefault: null,
+    styles: { essenziale: 15000, base: 22000, confortevole: 32000 }
   },
   "Polonia": {
-    currency: "PLN",
-    infl: 0.025, // target NBP 2.5% ±1pp
-    btcNow: 431000, // default, modificabile da UI
-    styles: {
-      essenziale: 19803,     // PLN/anno
-      base: 24924,
-      confortevole: 32400
-    }
+    currency: "PLN", sym: "zł",
+    infl: 0.025,  // NBP target 2.5%
+    btcDefault: null,
+    styles: { essenziale: 19803, base: 24924, confortevole: 32400 }
   }
 };
 
-const CUR_SYM = { EUR: "€", PLN: "zł" };
-
-// Tre scenari di crescita BTC (CAGR nominale)
+// Scenari CAGR nominale BTC — basati su modelli power-law e analisi storiche
+// Fonte: Bitcoin Magazine CAGR Calculator, Unchained Retirement Calculator
 const SCENARIOS = [
-  { key: "Conservativo", g: 0.10 },
-  { key: "Base",         g: 0.20 },
-  { key: "Aggressivo",   g: 0.30 }
+  { key: "Conservativo", g: 0.10, color: "#9bb0c6" },
+  { key: "Base",         g: 0.20, color: "#ffd166" },
+  { key: "Ottimista",   g: 0.30, color: "#06d6a0" }
 ];
 
-// ---------- Helpers
-const clamp = (x,min,max)=>Math.max(min,Math.min(max,x));
-const fmt = (n)=> new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(n);
-const fmtBTC = (n)=> new Intl.NumberFormat('it-IT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(n);
-const fmtPct = (x)=> `${(x*100).toFixed(2)}%`;
+// ---------- Helpers matematici
+const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
+const fmt = n => new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 }).format(n);
+const fmtBTC = n => new Intl.NumberFormat('it-IT', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(n);
+const fmtPct = x => `${(x * 100).toFixed(1)}%`;
 
-function updateCustomPlaceholder(){
-  const c = COUNTRIES[$country.value];
-  if (!c) return;
-  const sym = CUR_SYM[c.currency];
-  const sugg = c.styles?.base;
-  if (sugg && $customAnnual){
-    $customAnnual.placeholder = `es. ${sym} ${fmt(sugg)}`;
-  }
+function annuityFactor(r, N) {
+  if (!isFinite(r) || Math.abs(r) < 1e-9) return N;
+  return (1 - Math.pow(1 + r, -N)) / r;
 }
 
-function annuityFactor(r, N){
-  if (!isFinite(r) || Math.abs(r) < 1e-9) return N; // approssima a N se r≈0
-  return (1 - Math.pow(1+r, -N)) / r;
-}
-
-function annuityDue(r, N, drawStart){
+function annuityDue(r, N, drawStart) {
   const aOrd = annuityFactor(r, N);
-  return drawStart ? aOrd * (1 + r) : aOrd; // inizio anno vs fine anno
+  return drawStart ? aOrd * (1 + r) : aOrd;
 }
 
-function piecewiseAnnuity(N, r1, r2, T, drawStart){
+function piecewiseAnnuity(N, r1, r2, T, drawStart) {
   const n1 = Math.min(N, Math.max(0, T));
   const n2 = Math.max(0, N - n1);
   const a1 = annuityDue(r1, n1, drawStart);
@@ -74,220 +82,257 @@ function piecewiseAnnuity(N, r1, r2, T, drawStart){
   return a1 + discount * a2;
 }
 
-function yearsInRetirement(ageNow, retYear){
-  const yearsToRet = Math.max(0, retYear - NOW_YEAR);
-  const ageAtRet = ageNow + yearsToRet;
+function yearsInRetirement(ageNow, retYear) {
+  const ageAtRet = ageNow + Math.max(0, retYear - NOW_YEAR);
   return Math.max(0, 100 - ageAtRet);
 }
 
-function calcNeedBTC(countryKey, ageNow, retYear, annualBudget, gCagr, btcNowOverride, opts = {}){
+function calcNeedBTC(countryKey, ageNow, retYear, annualBudget, gCagr, btcNow, opts = {}) {
   const c = COUNTRIES[countryKey];
   const infl = c.infl;
-  const btcNow = (Number.isFinite(btcNowOverride) && btcNowOverride > 0) ? btcNowOverride : c.btcNow;
   const N = yearsInRetirement(ageNow, retYear);
   const yearsToRet = Math.max(0, retYear - NOW_YEAR);
-
-  // Prezzo BTC all'anno di pensione (nominale)
   const btcRet = btcNow * Math.pow(1 + gCagr, yearsToRet);
-
-  // Spesa annua all'anno di pensione (nominale)
   const spendRet = annualBudget * Math.pow(1 + infl, yearsToRet);
-
-  // Rendimento reale (BTC vs inflazione del paese)
   const rReal = (1 + gCagr) / (1 + infl) - 1;
-
   const drawStart = opts.drawStart ?? true;
   const twoStage = opts.twoStage ?? false;
   const stageYears = Math.max(0, Math.min(N, opts.stageYears ?? 15));
-  const stage2Real = (opts.stage2Real ?? 0.05); // 5% reale di default
+  const stage2Real = opts.stage2Real ?? 0.05;
 
-  let a; let r2 = rReal;
-  if (twoStage && N > 0){
-    r2 = stage2Real; // rendimento reale fase 2
-    a = piecewiseAnnuity(N, rReal, r2, stageYears, drawStart);
+  let a;
+  if (twoStage && N > 0) {
+    a = piecewiseAnnuity(N, rReal, stage2Real, stageYears, drawStart);
   } else {
     a = annuityDue(rReal, N, drawStart);
   }
 
   const btcNeeded = (spendRet * a) / btcRet;
-  return { btcNeeded, N, rReal, rReal2: r2, spendRet, btcRet, a };
+  return { btcNeeded, N, rReal, spendRet, btcRet, yearsToRet };
 }
 
-// Trova il primo anno >= retYear in cui lo stack copre il fabbisogno
-function earliestYearWithStack(countryKey, ageNow, retYear, annualBudget, gCagr, btcNow, stack){
+// DCA mensile stimato per raggiungere il target
+// Approssimazione: usa prezzo medio geometrico (sqrt tra ora e pensione)
+function calcMonthlyDCA(btcNeeded, stack, btcNow, gCagr, yearsToRet) {
+  if (yearsToRet <= 0) return null;
+  const btcStillNeeded = Math.max(0, btcNeeded - (stack || 0));
+  if (btcStillNeeded <= 0) return 0;
+  const avgBtcPrice = btcNow * Math.pow(1 + gCagr, yearsToRet / 2);
+  return (btcStillNeeded * avgBtcPrice) / (12 * yearsToRet);
+}
+
+// Primo anno in cui lo stack copre il fabbisogno
+function earliestYearWithStack(countryKey, ageNow, retYear, annualBudget, gCagr, btcNow, stack, safety, opts) {
   if (!stack || stack <= 0) return null;
-  let y = retYear;
-  for (; y <= 2100; y++){
-    const { btcNeeded } = calcNeedBTC(countryKey, ageNow, y, annualBudget, gCagr, btcNow);
-    if (stack >= btcNeeded) return y;
-    // Stop se ormai l'età a y è già >=100: oltre non si va
-    const yearsToY = Math.max(0, y - NOW_YEAR);
-    const ageAtY = ageNow + yearsToY;
-    if (ageAtY >= 100) break;
+  for (let y = retYear; y <= 2100; y++) {
+    const { btcNeeded } = calcNeedBTC(countryKey, ageNow, y, annualBudget, gCagr, btcNow, opts);
+    if (stack >= btcNeeded * (1 + safety)) return y;
+    if (ageNow + Math.max(0, y - NOW_YEAR) >= 100) break;
   }
   return null;
 }
 
-// ---------- UI wiring
-const $country = document.getElementById('country');
-const $age = document.getElementById('age');
-const $ageVal = document.getElementById('ageVal');
-const $retYear = document.getElementById('retYear');
-const $lifestyle = document.getElementById('lifestyle');
-const $customRow = document.getElementById('customRow');
+// ---------- Fetch prezzo live da CoinGecko
+let livePrices = { eur: null, pln: null };
+
+async function fetchLiveBTC() {
+  const indicator = document.getElementById('priceIndicator');
+  if (indicator) indicator.textContent = 'Aggiornamento prezzo...';
+  try {
+    const resp = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur,pln');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    livePrices.eur = data.bitcoin.eur;
+    livePrices.pln = data.bitcoin.pln;
+    updateBtcInputFromLive();
+    if (indicator) indicator.textContent = `Live ${new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`;
+  } catch (e) {
+    if (indicator) indicator.textContent = 'Prezzo offline';
+    // Fallback
+    livePrices.eur = 95000;
+    livePrices.pln = 405000;
+    updateBtcInputFromLive();
+  }
+}
+
+function getLiveBtcForCountry(countryKey) {
+  const c = COUNTRIES[countryKey];
+  if (c.currency === 'PLN') return livePrices.pln || 405000;
+  return livePrices.eur || 95000;
+}
+
+function updateBtcInputFromLive() {
+  const country = $country.value;
+  const price = getLiveBtcForCountry(country);
+  if (price && $btcNow) $btcNow.value = price;
+}
+
+// ---------- DOM refs
+const $country    = document.getElementById('country');
+const $age        = document.getElementById('age');
+const $ageVal     = document.getElementById('ageVal');
+const $retYear    = document.getElementById('retYear');
+const $lifestyle  = document.getElementById('lifestyle');
+const $customRow  = document.getElementById('customRow');
 const $customAnnual = document.getElementById('customAnnual');
-const $btcNow = document.getElementById('btcNow');
-const $drawStart = document.getElementById('drawStart');
-const $drawEnd = document.getElementById('drawEnd');
-const $safety = document.getElementById('safety');
-const $twoStage = document.getElementById('twoStage');
+const $btcNow     = document.getElementById('btcNow');
+const $drawStart  = document.getElementById('drawStart');
+const $safety     = document.getElementById('safety');
+const $twoStage   = document.getElementById('twoStage');
 const $twoStageRows = document.getElementById('twoStageRows');
 const $stageYears = document.getElementById('stageYears');
 const $stage2Real = document.getElementById('stage2Real');
-const $curSym = document.getElementById('curSym');
-const $curSymBtc = document.getElementById('curSymBtc');
-const $stack = document.getElementById('stack');
-const $form = document.getElementById('planner');
-const $kpi = document.getElementById('kpi');
-const $cards = document.getElementById('cards');
+const $curSym     = document.getElementById('curSym');
+const $curSymBtc  = document.getElementById('curSymBtc');
+const $stack      = document.getElementById('stack');
+const $form       = document.getElementById('planner');
+const $kpi        = document.getElementById('kpi');
+const $cards      = document.getElementById('cards');
 
 // Popola paesi
-Object.keys(COUNTRIES).forEach(name=>{
+Object.keys(COUNTRIES).forEach(name => {
   const opt = document.createElement('option');
   opt.value = name; opt.textContent = name;
   $country.appendChild(opt);
 });
 $country.value = 'Italia';
 
-function refreshCurrencyUI(){
+function refreshCurrencyUI() {
   const c = COUNTRIES[$country.value];
-  const sym = CUR_SYM[c.currency];
-  $curSym.textContent = sym;
-  $curSymBtc.textContent = sym;
-  $btcNow.value = c.btcNow;
+  $curSym.textContent = c.sym;
+  $curSymBtc.textContent = c.sym;
+  $btcNow.value = getLiveBtcForCountry($country.value);
   updateCustomPlaceholder();
 }
 
-function onLifestyleChange(){
+function updateCustomPlaceholder() {
+  const c = COUNTRIES[$country.value];
+  if (!c || !$customAnnual) return;
+  $customAnnual.placeholder = `es. ${c.sym} ${fmt(c.styles.base)}`;
+}
+
+function onLifestyleChange() {
   $customRow.classList.toggle('hidden', $lifestyle.value !== 'custom');
-  if ($lifestyle.value === 'custom'){
-    updateCustomPlaceholder();
-    // reset stato validazione al cambio modalità
-    $customAnnual.setAttribute('aria-invalid', 'false');
-  } else {
-    if ($customAnnual) $customAnnual.removeAttribute('aria-invalid');
+  if ($lifestyle.value !== 'custom' && $customAnnual) {
+    $customAnnual.removeAttribute('aria-invalid');
   }
 }
 
-$age.addEventListener('input', ()=>{ $ageVal.textContent = $age.value; });
-$country.addEventListener('change', ()=>{ refreshCurrencyUI(); });
+$age.addEventListener('input', () => { $ageVal.textContent = $age.value; });
+$country.addEventListener('change', refreshCurrencyUI);
 $lifestyle.addEventListener('change', onLifestyleChange);
-
-$twoStage.addEventListener('change', ()=>{
+$twoStage.addEventListener('change', () => {
   $twoStageRows.classList.toggle('hidden', !$twoStage.checked);
 });
 
 refreshCurrencyUI();
 onLifestyleChange();
 
-$form.addEventListener('submit', (e)=>{
+// Fetch prezzo all'avvio
+fetchLiveBTC();
+
+// ---------- Submit
+$form.addEventListener('submit', e => {
   e.preventDefault();
-  const country = $country.value;
-  const age = parseInt($age.value,10);
-  const retYear = clamp(parseInt($retYear.value,10)||NOW_YEAR, NOW_YEAR, 2100);
-  const btcNow = parseFloat($btcNow.value);
-  const stack = parseFloat($stack.value);
-
-  const drawStart = $drawStart.checked; // true=inizio anno, false=fine anno
-  const safety = parseFloat($safety.value || '0');
-  const twoStage = $twoStage.checked;
-  const stageYears = parseInt($stageYears.value||'15',10);
-  const stage2Real = (parseFloat($stage2Real.value||'5')/100); // da % a quota
-
-  const styles = COUNTRIES[country].styles;
-  const sym = CUR_SYM[COUNTRIES[country].currency];
+  const country   = $country.value;
+  const c         = COUNTRIES[country];
+  const age       = parseInt($age.value, 10);
+  const retYear   = clamp(parseInt($retYear.value, 10) || NOW_YEAR, NOW_YEAR, 2100);
+  const btcNow    = parseFloat($btcNow.value);
+  const stack     = parseFloat($stack.value) || 0;
+  const drawStart = $drawStart.checked;
+  const safety    = parseFloat($safety.value || '0');
+  const twoStage  = $twoStage.checked;
+  const stageYears = parseInt($stageYears.value || '15', 10);
+  const stage2Real = parseFloat($stage2Real.value || '5') / 100;
 
   let annualBudget;
-  if ($lifestyle.value === 'custom'){
-    annualBudget = parseFloat($customAnnual.value||'0');
-  } else {
-    annualBudget = styles[$lifestyle.value];
-  }
-
-  // Validazione UI per campo custom
-  if ($lifestyle.value === 'custom'){
+  if ($lifestyle.value === 'custom') {
+    annualBudget = parseFloat($customAnnual.value || '0');
     const bad = !Number.isFinite(annualBudget) || annualBudget <= 0;
     $customAnnual.setAttribute('aria-invalid', bad ? 'true' : 'false');
+  } else {
+    annualBudget = c.styles[$lifestyle.value];
   }
 
-  if (!Number.isFinite(annualBudget) || annualBudget <= 0){
-    $cards.innerHTML = '<p class="ko">Importo annuo non valido. Inserisci un numero positivo.</p>';
+  if (!Number.isFinite(annualBudget) || annualBudget <= 0) {
+    $cards.innerHTML = '<p class="ko">Importo annuo non valido.</p>';
     return;
   }
 
-  // KPI pill
   const yearsToRet = Math.max(0, retYear - NOW_YEAR);
-  const ageAtRet = age + yearsToRet;
-  const N = yearsInRetirement(age, retYear);
+  const ageAtRet   = age + yearsToRet;
+  const N          = yearsInRetirement(age, retYear);
+  const opts       = { drawStart, twoStage, stageYears, stage2Real };
+
+  // KPI
   $kpi.innerHTML = `
     <div class="pill"><strong>Paese:</strong> ${country}</div>
-    <div class="pill"><strong>Età:</strong> ${age}</div>
-    <div class="pill"><strong>Pensione:</strong> ${retYear} (età ${ageAtRet})</div>
+    <div class="pill"><strong>Eta:</strong> ${age} anni</div>
+    <div class="pill"><strong>Pensione:</strong> ${retYear} (eta ${ageAtRet})</div>
     <div class="pill"><strong>Orizzonte:</strong> ${N} anni (fino a 100)</div>
-    <div class="pill"><strong>Stile:</strong> ${$lifestyle.options[$lifestyle.selectedIndex].text}</div>
-    <div class="pill"><strong>Budget annuo:</strong> ${sym} ${fmt(annualBudget)}</div>
-  `;
-  $kpi.innerHTML += `
-    <div class="pill"><strong>Prelievi:</strong> ${drawStart? 'Inizio anno' : 'Fine anno'}</div>
-    <div class="pill"><strong>Safety:</strong> ${Math.round(safety*100)}%</div>
-    ${twoStage? `<div class="pill"><strong>Doppio rendimento:</strong> ${stageYears} anni → ${(stage2Real*100).toFixed(1)}% reale</div>` : ''}
+    <div class="pill"><strong>Budget:</strong> ${c.sym} ${fmt(annualBudget)}/anno</div>
+    <div class="pill"><strong>BTC oggi:</strong> ${c.sym} ${fmt(btcNow)}</div>
+    <div class="pill"><strong>Inflazione ${country}:</strong> ${fmtPct(c.infl)}</div>
+    ${safety > 0 ? `<div class="pill"><strong>Safety:</strong> +${Math.round(safety * 100)}%</div>` : ''}
   `;
 
-  // Costruisci le 3 card scenario
-  const cardsHTML = SCENARIOS.map(sc => {
-    const { btcNeeded, rReal, rReal2, spendRet, btcRet } = calcNeedBTC(
-      country, age, retYear, annualBudget, sc.g, btcNow,
-      { drawStart, twoStage, stageYears, stage2Real }
+  // Stack progress (rispetto allo scenario base)
+  if (stack > 0) {
+    const { btcNeeded: baseNeed } = calcNeedBTC(country, age, retYear, annualBudget, SCENARIOS[1].g, btcNow, opts);
+    const baseNeedSafe = baseNeed * (1 + safety);
+    const pct = Math.min(100, (stack / baseNeedSafe) * 100);
+    $kpi.innerHTML += `
+      <div class="progress-wrap">
+        <div class="progress-label">Il tuo stack (${fmtBTC(stack)} BTC) copre il <strong>${pct.toFixed(1)}%</strong> del target scenario Base</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+    `;
+  }
+
+  // Cards scenari
+  $cards.innerHTML = SCENARIOS.map(sc => {
+    const { btcNeeded, rReal, spendRet, btcRet, yearsToRet: yRet } = calcNeedBTC(
+      country, age, retYear, annualBudget, sc.g, btcNow, opts
     );
     const btcNeededSafe = btcNeeded * (1 + safety);
-    const drawTxt = drawStart ? 'inizio' : 'fine';
-    const rInfo = twoStage ? `r1 ${fmtPct(rReal)}, r2 ${fmtPct(rReal2)} per ${Math.min(stageYears, yearsInRetirement(age, retYear))} anni` : `r reale ${fmtPct(rReal)}`;
-    const line2 = `<div class="meta">CAGR BTC ${(sc.g*100).toFixed(0)}% • ${rInfo} • prelievo ${drawTxt} anno</div>`;
-    const line3 = `<div class="meta">Spesa annua a ${retYear}: ${sym} ${fmt(spendRet)} • Prezzo BTC stimato: ${sym} ${fmt(btcRet)}${safety>0? ` • safety +${Math.round(safety*100)}%` : ''}</div>`;
 
+    // DCA mensile stimato
+    const dca = calcMonthlyDCA(btcNeededSafe, stack, btcNow, sc.g, yearsToRet);
+    const dcaLine = dca === null ? '' :
+      dca === 0 ? `<div class="ok meta">Stack sufficiente - DCA non necessario</div>` :
+      `<div class="meta dca-line">DCA stimato: <strong>${c.sym} ${fmt(dca)}/mese</strong> <span class="hint-dca">(prezzo medio stimato)</span></div>`;
+
+    // Stack analysis
     let stackLine = '';
-    if (Number.isFinite(stack) && stack > 0){
-      const when = (function(){
-        // Cerca l'anno in cui lo stack copre anche il margine di sicurezza
-        let y = retYear;
-        for (; y <= 2100; y++){
-          const { btcNeeded: need } = calcNeedBTC(country, age, y, annualBudget, sc.g, btcNow, { drawStart, twoStage, stageYears, stage2Real });
-          if (stack >= need * (1 + safety)) return y;
-          const yearsToY = Math.max(0, y - NOW_YEAR);
-          if (age + yearsToY >= 100) break;
-        }
-        return null;
-      })();
-      if (when === retYear){
-        stackLine = `<div class="ok">Con i tuoi ${fmtBTC(stack)} BTC sei già pensionabile nel ${retYear}.</div>`;
-      } else if (when){
-        stackLine = `<div>Con ${fmtBTC(stack)} BTC diventi pensionabile dal <strong>${when}</strong>.</div>`;
+    if (stack > 0) {
+      const when = earliestYearWithStack(country, age, retYear, annualBudget, sc.g, btcNow, stack, safety, opts);
+      if (when === retYear) {
+        stackLine = `<div class="ok">Sei gia pensionabile nel ${retYear} con ${fmtBTC(stack)} BTC.</div>`;
+      } else if (when) {
+        stackLine = `<div class="meta">Con ${fmtBTC(stack)} BTC: pensionabile dal <strong>${when}</strong>.</div>`;
       } else {
-        stackLine = `<div class="ko">Con ${fmtBTC(stack)} BTC non diventi pensionabile entro i 100 anni in questo scenario.</div>`;
+        stackLine = `<div class="ko meta">Stack insufficiente in questo scenario entro i 100 anni.</div>`;
       }
     }
 
     return `
-      <div class="card-scenario">
-        <h3>${sc.key}</h3>
-        <div class="big">≈ ${fmtBTC(btcNeededSafe)} BTC</div>
-        ${line2}
-        ${line3}
+      <div class="card-scenario" style="--accent-sc:${sc.color}">
+        <div class="scenario-header">
+          <h3>${sc.key}</h3>
+          <span class="cagr-badge">${(sc.g * 100).toFixed(0)}% CAGR</span>
+        </div>
+        <div class="big">${fmtBTC(btcNeededSafe)} BTC</div>
+        <div class="meta">${c.sym} ${fmt(btcNeededSafe * btcNow)} oggi &middot; ${c.sym} ${fmt(btcNeededSafe * btcRet)} a ${retYear}</div>
+        <div class="meta">Spesa ${retYear}: ${c.sym} ${fmt(spendRet)} &middot; P<sub>BTC</sub>: ${c.sym} ${fmt(btcRet)}</div>
+        <div class="meta">r reale: ${fmtPct(rReal)}</div>
+        ${dcaLine}
         ${stackLine}
       </div>
     `;
   }).join('');
 
-  $cards.innerHTML = cardsHTML;
-  updateCustomPlaceholder();
+  // Disclaimer dinamico
+  document.getElementById('disclaimerInfl').textContent =
+    `Inflazione ${country}: ${fmtPct(c.infl)} (fonte: BCE/Eurostat 2025). CAGR BTC: 10% / 20% / 30%. Non e consulenza finanziaria.`;
 });
