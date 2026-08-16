@@ -381,61 +381,69 @@ function stackInBTC() {
 }
 
 /**
- * I tre campi del tuo Bitcoin sono legati da una sola relazione:
+ * I tre campi del tuo Bitcoin sono legati da una relazione sola:
  *
  *     quanto hai investito = prezzo medio di carico × bitcoin posseduti
  *
- * Quindi non si chiedono tutti e tre: se ne scrivi due, il terzo esce da solo.
- * `ultimoScritto` ricorda quale dei due — spesa totale o prezzo medio — hai
- * toccato per ultimo, così quando cambi la quantità di bitcoin si ricalcola
- * l'altro e non quello che stavi scrivendo.
+ * Quindi non si chiedono tutti e tre: se ne scrivi due, il terzo esce da solo,
+ * in qualunque combinazione. `toccati` tiene i due campi che hai scritto per
+ * ultimi: il terzo è quello che viene calcolato, così non ti si riscrive mai
+ * sotto le dita quello su cui stai lavorando.
  */
-let ultimoScritto = "investito";
+const CAMPI_BTC = ["stack", "investito", "costo"];
+let toccati = ["investito", "costo"];
 
 function sincronizzaCosto(origine) {
+  if (CAMPI_BTC.includes(origine)) {
+    toccati = [origine, ...toccati.filter(x => x !== origine)].slice(0, 2);
+  }
+  const daCalcolare = CAMPI_BTC.find(x => !toccati.includes(x));
+
   const btc = stackInBTC();
   const speso = parseFloat($investito.value || "0");
   const medio = parseFloat($costo.value || "0");
-  if (origine === "investito" || origine === "costo") ultimoScritto = origine;
 
-  if (btc > 0) {
-    if (origine === "costo" || (origine === "stack" && ultimoScritto === "costo" && medio > 0)) {
-      if (medio > 0) $investito.value = Math.round(medio * btc);
-    } else if (speso > 0) {
-      $costo.value = Math.round(speso / btc);
-    }
+  if (daCalcolare === "stack" && speso > 0 && medio > 0) {
+    const q = speso / medio;
+    // Sotto un bitcoin si scrive volentieri in satoshi, ma qui il campo
+    // accetta entrambi: si mostra in BTC con otto decimali, senza zeri inutili.
+    $stack.value = parseFloat(q.toFixed(8));
+  } else if (daCalcolare === "investito" && btc > 0 && medio > 0) {
+    $investito.value = Math.round(medio * btc);
+  } else if (daCalcolare === "costo" && btc > 0 && speso > 0) {
+    $costo.value = Math.round(speso / btc);
   }
-  mostraNotaCosto();
+  mostraNotaCosto(daCalcolare);
 }
 
-function mostraNotaCosto() {
+function mostraNotaCosto(calcolato) {
   const btc = stackInBTC();
   const medio = parseFloat($costo.value || "0");
   const speso = parseFloat($investito.value || "0");
   const nota = $("notaCosto");
+  const sym = PAESI[$paese.value].sym;
 
   if (medio > 0 && btc > 0) {
     const p = parseFloat($prezzo.value || "0");
-    const sym = PAESI[$paese.value].sym;
     const segno = p > 0
       ? (medio > p
           ? ` Oggi Bitcoin sta sotto: sei in perdita del ${fmtPct(1 - p / medio)} e su una vendita non pagheresti imposta.`
-          : ` Il ${fmtPct(1 - medio / p)} del valore attuale è plusvalenza tassabile.`)
+          : ` Plusvalenza tassabile: ${fmtPct(1 - medio / p)} del valore attuale.`)
       : "";
-    const detto = ultimoScritto === "costo"
-      ? `Hai investito in tutto <b>${sym} ${fmt(speso)}</b>.`
-      : `Prezzo medio: <b>${sym} ${fmt(medio)}</b> per bitcoin.`;
+    const detto = calcolato === "stack" ? `Vengono <b>${fmtBTC(btc)} BTC</b>.`
+                : calcolato === "investito" ? `Hai investito in tutto <b>${sym} ${fmt(speso)}</b>.`
+                : `Prezzo medio: <b>${sym} ${fmt(medio)}</b> per bitcoin.`;
     nota.innerHTML = detto + segno;
     nota.classList.add("nota-viva");
   } else {
-    nota.textContent = "Scrivine due e il terzo si compila da solo: la spesa totale è il prezzo medio moltiplicato per i bitcoin che hai. Serve per l'imposta, che si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
+    nota.textContent = "Scrivine due qualunque e il terzo si compila da solo: la spesa totale è il prezzo medio moltiplicato per i bitcoin che hai. Serve per l'imposta, che si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
     nota.classList.remove("nota-viva");
   }
   $("suntoStack").textContent = btc > 0 ? `${fmtBTC(btc)} BTC` : "niente";
 }
 
 /** Compatibilità: l'avvio e il cambio paese chiamano ancora questo nome. */
-const calcolaCostoMedio = () => mostraNotaCosto();
+const calcolaCostoMedio = () => mostraNotaCosto(null);
 
 function leggiInput() {
   const eta = clamp(parseInt($eta.value, 10) || 35, 18, 95);
