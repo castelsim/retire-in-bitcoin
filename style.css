@@ -126,12 +126,6 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
 /* ---------- Il modulo è una frase da completare ----------
    Dodici etichette diventano due frasi con dei buchi: si legge una volta
    sola e si capisce che cosa sta chiedendo, senza tradurre dal modulistico. */
-.scheda {
-  background: var(--ink-2);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 1.1rem 1.25rem;
-}
 
 .frase {
   font-size: clamp(1rem, 1.6vw, 1.15rem);
@@ -315,13 +309,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   cursor: pointer;
 }
 
-.regime-nota {
-  font-size: .86rem;
-  color: var(--muted);
-  border-left: 2px solid var(--tax);
-  padding-left: .9rem;
-  margin: .5rem 0 1rem;
-}
 
 
 /* ---------- Risultati ---------- */
@@ -374,9 +361,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   margin: .5rem 0 0;
 }
 .verdetto .sotto b { color: var(--keep); }
-.cop-testa { max-width: 22rem; margin: 1.5rem auto 0; }
-.cop-testa p { font-family: var(--mono); font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
-.cop-testa b { color: var(--keep); }
 
 .blocco { padding: 2.75rem 0; border-bottom: 1px solid var(--line); }
 .blocco:last-child { border-bottom: 0; }
@@ -457,38 +441,7 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .l-banda { background: var(--keep); opacity: .3; height: 10px !important; border-radius: 2px; }
 .g-scala { margin-left: auto; }
 
-/* Il decumulo disegnato: l area che scende a zero */
-.gfx-decumulo { margin-top: 1rem; }
-.g-area { fill: var(--keep); opacity: .16; }
-.g-linea { fill: none; stroke: var(--keep); stroke-width: 2; }
-.cassetto-tabella { border-top: 1px solid var(--line); margin-top: 1.25rem; }
-.cassetto-tabella .nota { margin-bottom: 1rem; }
 
-/* La timeline del decumulo: cinquant'anni di righe, leggibili anche sul telefono */
-.tabellone {
-  overflow-x: auto;
-  overflow-y: auto;
-  max-height: 30rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  margin-top: 1rem;
-}
-.timeline { font-size: .82rem; margin: 0; }
-.timeline th {
-  position: sticky;
-  top: 0;
-  background: var(--ink-2);
-  padding: .7rem .8rem;
-  white-space: nowrap;
-  z-index: 1;
-}
-.timeline td { padding: .5rem .8rem; white-space: nowrap; border-bottom: 1px solid var(--ink-3); }
-.timeline tbody tr:hover { background: rgba(255,255,255,.025); }
-.timeline .anno { color: var(--faint); }
-.timeline .k { color: var(--keep); }
-.timeline .t { color: var(--tax); }
-.timeline .residui { color: var(--text); font-weight: 600; }
-.timeline td.num, .timeline th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
 /* La fascia sta sotto il grafico, nella prima schermata: si legge di colpo
    dove sta il prezzo fra il fondo e il tetto. */
@@ -675,10 +628,8 @@ footer a {
   .corr-etichette { height: auto; display: grid; gap: .5rem; }
   .corr-etichette span { position: static; transform: none; text-align: left !important; left: auto !important; }
   .corr-etichette b { display: inline; margin-left: .4rem; }
-  .tabellone { max-height: 24rem; }
-  .testata { padding-top: 2.5rem; }
-  .scheda { padding: 1.25rem; }
-  .griglia { grid-template-columns: 1fr; }
+    .testata { padding-top: 2.5rem; }
+    .griglia { grid-template-columns: 1fr; }
   select, input[type="number"] { min-height: 46px; }
   .tabella .viz { display: none; }
   .tabella { font-size: .86rem; }

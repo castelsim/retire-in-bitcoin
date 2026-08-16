@@ -703,68 +703,6 @@ function render() {
            <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}</p>`}
     </div>`;
 
-  // — La timeline: è questa che spiega il numero
-  const righe = rCentro.righe;
-  const ogniQuanti = righe.length > 26 ? 2 : 1;   // sopra i 26 anni si mostra un anno sì e uno no
-  const corpo = righe.filter((_, k) => k % ogniQuanti === 0 || k === righe.length - 1).map(r => `
-    <tr>
-      <td class="num">${r.eta}</td>
-      <td class="num anno">${r.anno}</td>
-      <td class="num">${c.sym} ${fmt(r.prezzo)}</td>
-      <td class="num k">${c.sym} ${fmt(r.netto)}</td>
-      <td class="num">${c.sym} ${fmt(r.lordo)}</td>
-      <td class="num">${r.venduti < 0.001 ? (r.venduti * 1e8).toFixed(0) + " sat" : fmtBTC(r.venduti)}</td>
-      <td class="num t">${r.tasse > 0 ? c.sym + " " + fmt(r.tasse) : "—"}</td>
-      <td class="num residui">${fmtBTC(r.residui)}</td>
-    </tr>`).join("");
-
-  const tasseTot = righe.reduce((a, r) => a + r.tasse, 0);
-  const nettoTot = righe.reduce((a, r) => a + r.netto, 0);
-
-  // Il decumulo disegnato: quanti bitcoin ti restano, anno dopo anno, fino a zero.
-  const GW = 760, GH = 220, GML = 46, GMR = 14, GMT = 14, GMB = 30;
-  const maxBtc2 = righe[0].prima;
-  const gx = eta => GML + (eta - base.etaInizio) / Math.max(1, ETA_MAX - base.etaInizio) * (GW - GML - GMR);
-  const gy = v => GMT + (1 - v / maxBtc2) * (GH - GMT - GMB);
-  const areaPunti = righe.map(r => `${gx(r.eta).toFixed(1)},${gy(r.residui).toFixed(1)}`);
-  const area = `M${gx(base.etaInizio).toFixed(1)},${gy(maxBtc2).toFixed(1)}L${areaPunti.join("L")}L${gx(ETA_MAX).toFixed(1)},${(GH - GMB).toFixed(1)}L${GML},${(GH - GMB).toFixed(1)}Z`;
-  const etaTacche = righe.map(r => r.eta).filter(e => e % 10 === 0);
-
-  const timelineBox = `
-    <section class="blocco">
-      <h2>Come si consuma, anno dopo anno</h2>
-      <p class="intro">Ogni anno vendi quello che serve, e alla fine non resta niente: è un decumulo programmato, non una rendita. L'importo cresce con l'inflazione, perché ${c.sym} ${fmt(base.nettoAnnuo)} di oggi non compreranno le stesse cose fra ${rCentro.attesa} anni.</p>
-      <figure class="gfx gfx-decumulo">
-        <svg viewBox="0 0 ${GW} ${GH}" role="img" aria-label="I bitcoin residui scendono da ${fmtBTC(maxBtc2)} a zero fra i ${base.etaInizio} e i ${ETA_MAX} anni" preserveAspectRatio="xMidYMid meet">
-          ${[0.5, 1].map(f => `<line x1="${GML}" y1="${gy(maxBtc2 * f).toFixed(1)}" x2="${GW - GMR}" y2="${gy(maxBtc2 * f).toFixed(1)}" class="g-griglia" />
-            <text x="${GML - 7}" y="${(gy(maxBtc2 * f) + 4).toFixed(1)}" class="g-tacca" text-anchor="end">${fmtBTC(maxBtc2 * f)}</text>`).join("")}
-          <line x1="${GML}" y1="${(GH - GMB).toFixed(1)}" x2="${GW - GMR}" y2="${(GH - GMB).toFixed(1)}" class="g-griglia" />
-          <text x="${GML - 7}" y="${(GH - GMB + 4).toFixed(1)}" class="g-tacca" text-anchor="end">0</text>
-          <path d="${area}" class="g-area" />
-          <polyline points="${areaPunti.join(" ")}" class="g-linea" />
-          ${etaTacche.map(e => `<text x="${gx(e).toFixed(1)}" y="${GH - 10}" class="g-tacca" text-anchor="middle">${e} anni</text>`).join("")}
-          <circle cx="${gx(base.etaInizio).toFixed(1)}" cy="${gy(maxBtc2).toFixed(1)}" r="3.5" class="g-oggi" />
-          <text x="${(gx(base.etaInizio) + 9).toFixed(1)}" y="${(gy(maxBtc2) + 4).toFixed(1)}" class="g-valore">${fmtBTC(maxBtc2)} BTC</text>
-          <text x="${(gx(ETA_MAX) - 4).toFixed(1)}" y="${(GH - GMB - 8).toFixed(1)}" class="g-valore" text-anchor="end">0</text>
-        </svg>
-      </figure>
-      <p class="nota">In tutto incassi <b class="k">${c.sym} ${fmt(nettoTot)}</b> netti e paghi <b class="t">${c.sym} ${fmt(tasseTot)}</b> di imposta, su ${righe.length} anni.</p>
-      <details class="cassetto cassetto-tabella">
-        <summary>I numeri, anno per anno <span class="sunto">${righe.length} righe</span></summary>
-        <div class="tabellone">
-          <table class="tabella timeline">
-            <thead><tr>
-              <th class="num">Età</th><th class="num">Anno</th><th class="num">Bitcoin a</th>
-              <th class="num">Ti resta netto</th><th class="num">Vendita lorda</th>
-              <th class="num">BTC venduti</th><th class="num">Imposta</th><th class="num">BTC residui</th>
-            </tr></thead>
-            <tbody>${corpo}</tbody>
-          </table>
-        </div>
-        <p class="nota">${ogniQuanti > 1 ? `Per non allungare troppo la tabella si mostra un anno ogni ${ogniQuanti}; il calcolo li usa tutti. ` : ""}I prezzi sono quelli della linea centrale del corridoio: guardali, e decidi tu se sono credibili.</p>
-      </details>
-    </section>`;
-
   // — Dove sta il prezzo, adesso
   let corridoioBox = "";
   if (prezziLive.usd) {
@@ -890,7 +828,7 @@ function render() {
 
   $grafico.innerHTML = grafico(base, cambio) + `<div id="verdetto">${testa}</div>`;
   $corridoio.innerHTML = corridoioBox;
-  $out.innerHTML = timelineBox + scenariBox + fiscoBox + paesiBox + ipotesi;
+  $out.innerHTML = scenariBox + fiscoBox + paesiBox + ipotesi;
 }
 
 // ------------------------------------------------------------
