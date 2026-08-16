@@ -54,27 +54,36 @@ ok('il bollo erode anche negli anni di attesa',
 
 console.log('\n--- 5. QUANTO INVESTIRE DA QUI A LI ---');
 const L0=lineaDi(base,CEN);
-const pa=pianoDiAccumulo(base,L0,0);
+const pa=pianoDiAccumulo(base,L0,L0,0);
 console.log('     da zero: '+Math.round(pa.mensile)+' EUR/mese per '+pa.anni+' anni = '+Math.round(pa.totale)+' EUR');
 ok('il versamento e positivo e finito', pa.mensile>0 && isFinite(pa.mensile));
 ok('i mesi sono quelli fra oggi e il primo prelievo', pa.mesi===(base.etaInizio-base.eta)*12);
 ok('il totale e mensile x mesi', Math.abs(pa.totale-pa.mensile*pa.mesi)<1);
 ok('con piu tempo si versa meno al mese',
-   pianoDiAccumulo({...base,etaInizio:65},lineaDi({...base,etaInizio:65},CEN),0).mensile < pa.mensile);
+   pianoDiAccumulo({...base,etaInizio:65},lineaDi({...base,etaInizio:65},CEN),lineaDi({...base,etaInizio:65},CEN),0).mensile < pa.mensile);
 ok('chiedendo il doppio si versa circa il doppio',
-   Math.abs(pianoDiAccumulo({...base,nettoAnnuo:20000},L0,0).mensile/pa.mensile-2)<0.15);
-ok('avendo gia dei bitcoin si versa meno', pianoDiAccumulo(base,L0,0.03).mensile < pa.mensile);
-ok('con abbastanza bitcoin non serve versare nulla', pianoDiAccumulo(base,L0,1).giaCoperto);
+   Math.abs(pianoDiAccumulo({...base,nettoAnnuo:20000},L0,L0,0).mensile/pa.mensile-2)<0.15);
+ok('avendo gia dei bitcoin si versa meno', pianoDiAccumulo(base,L0,L0,0.03).mensile < pa.mensile);
+ok('con abbastanza bitcoin non serve versare nulla', pianoDiAccumulo(base,L0,L0,1).giaCoperto);
 // il caso che sbagliava: nessun tempo per accumulare non vuol dire essere a posto
 const subito={...base,etaInizio:base.eta};
-ok('cominciando subito non c e piano di accumulo', pianoDiAccumulo(subito,lineaDi(subito,CEN),0)===null);
+ok('cominciando subito non c e piano di accumulo', pianoDiAccumulo(subito,lineaDi(subito,CEN),lineaDi(subito,CEN),0)===null);
 ok('e i bitcoin necessari restano tanti', fab(subito,CEN)>0.5, fab(subito,CEN).toFixed(4)+' BTC');
 // il risultato che conta: in euro le tre linee chiedono lo stesso
-const mS=pianoDiAccumulo(base,lineaDi(base,SUP),0).mensile;
-const mR=pianoDiAccumulo(base,lineaDi(base,RES),0).mensile;
+const mS=pianoDiAccumulo(base,lineaDi(base,SUP),lineaDi(base,SUP),0).mensile;
+const mR=pianoDiAccumulo(base,lineaDi(base,RES),lineaDi(base,RES),0).mensile;
 console.log('     supporto '+Math.round(mS)+' · centro '+Math.round(pa.mensile)+' · resistenza '+Math.round(mR)+' EUR/mese');
 ok('IL VERSAMENTO NON DIPENDE DALLA LINEA (piu alto il prezzo, meno BTC ma piu cari)',
    Math.abs(mR-mS)/pa.mensile < 0.02, 'scarto '+(Math.abs(mR-mS)/pa.mensile*100).toFixed(1)+'%');
+
+// le due fasi usano linee diverse, ed e voluto
+const obiettivoSup=fabbisogno(base,lineaDi(base,SUP)).btcNecessari;
+const suMediana=pianoDiAccumulo(base,lineaDi(base,SUP),lineaDi(base,CEN),0).mensile;
+const suSupporto=pianoDiAccumulo(base,lineaDi(base,SUP),lineaDi(base,SUP),0).mensile;
+const suResistenza=pianoDiAccumulo(base,lineaDi(base,SUP),lineaDi(base,RES),0).mensile;
+console.log('     acquisti su supporto '+Math.round(suSupporto)+' · mediana '+Math.round(suMediana)+' · resistenza '+Math.round(suResistenza)+' EUR/mese');
+ok('comprare piu caro fa versare di piu', suSupporto<suMediana && suMediana<suResistenza);
+ok('la mediana sta in mezzo, non agli estremi', suMediana>suSupporto*1.5 && suMediana<suResistenza*0.5);
 
 console.log('\n--- 6. TEST DI TENUTA ---');
 const L=lineaDi(base,CEN);

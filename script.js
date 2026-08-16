@@ -113,6 +113,21 @@ let STORICO = [[605,0.07],[635,0.06],[666,0.19],[696,0.28],[727,0.3],[758,0.48],
  */
 const RIFERIMENTO = 0;   // indice in SCENARI: 0 supporto · 1 centro · 2 resistenza
 
+/**
+ * PER ACCUMULARE, INVECE, LA MEDIANA.
+ * La prudenza ha verso opposto nelle due fasi: nel decumulo conviene
+ * temere il prezzo basso (serve più capitale), nell'accumulo il prezzo
+ * alto (i bitcoin costano di più). Ma comprare per quindici anni ai
+ * prezzi del tetto è uno scenario che il corridoio non contempla — e
+ * pretenderebbe che il prezzo poi scivoli sul fondo giusto quando
+ * cominci a vendere.
+ *
+ * Su centottanta versamenti il prezzo medio pagato tende alla mediana,
+ * per costruzione. Il caso avverso si prende dove non hai margine di
+ * manovra — il decumulo — non dove fai molti tentativi.
+ */
+const ACCUMULO = 1;
+
 const giorniDaGenesi = (data = new Date()) => (data.getTime() - GENESI) / 86400000;
 
 /** La retta della regressione, in dollari. */
@@ -256,16 +271,16 @@ function fabbisognoLiscio(p, linea) {
  * cercarlo a tentoni.
  *
  */
-function pianoDiAccumulo(p, linea, stack) {
+function pianoDiAccumulo(p, lineaObiettivo, lineaAcquisto, stack) {
   const mesi = Math.max(0, Math.round((p.etaInizio - p.eta) * 12));
   if (mesi === 0) return null;
 
-  // Quanti bitcoin compra un euro al mese, lungo tutto il percorso.
+  // Quanti bitcoin compra un euro al mese, ai prezzi della linea d'acquisto.
   let btcPerEuroMensile = 0;
-  for (let m = 0; m < mesi; m++) btcPerEuroMensile += 1 / linea(m / 12);
+  for (let m = 0; m < mesi; m++) btcPerEuroMensile += 1 / lineaAcquisto(m / 12);
 
-  // Niente giri di punto fisso: l'imposta non dipende più da quanto hai pagato.
-  const obiettivo = fabbisogno(p, linea).btcNecessari;
+  // L'obiettivo invece esce dalla linea del decumulo, che è più bassa.
+  const obiettivo = fabbisogno(p, lineaObiettivo).btcNecessari;
   const mancano = Math.max(0, obiettivo - stack);
   const mensile = mancano / btcPerEuroMensile;
   return {
@@ -627,7 +642,7 @@ function render() {
   const annoInizio = NOW_YEAR + rCentro.attesa;
 
   // — Il numero
-  const pa = pianoDiAccumulo(base, lineaDi(base, RIF), stack);
+  const pa = pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, SCENARI[ACCUMULO]), stack);
   const testa = `
     <div class="verdetto">
       <p class="occhiello">Devi mettere da parte</p>
@@ -642,7 +657,7 @@ function render() {
         ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
            <p class="sotto">i tuoi ${fmtBTC(stack)} BTC superano l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
         : `<p class="cifra">${c.sym} ${fmt(pa.mensile)}<span class="unita">al mese</span></p>
-           <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}<br /><span class="prudente">sul fondo del corridoio: se il prezzo farà meglio, ti avanzeranno</span></p>`}
+           <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}<br /><span class="prudente">obiettivo sul fondo del corridoio, acquisti alla mediana</span></p>`}
     </div>`;
 
   // — Dove sta il prezzo, adesso
@@ -743,7 +758,8 @@ function render() {
       <h2>Che cosa ho assunto</h2>
       <ul class="ipotesi">
         <li><b>Regge un crollo del 70%</b> — il capitale non è il minimo che basta se tutto va liscio (sarebbero ${fmtBTC(rCentro.btcLiscio)} BTC), ma quello che sopravvive a un crollo del 70% con recupero in quattro anni, provato in <b>ognuno</b> dei ${rCentro.anni} anni di prelievi e tenendo il peggiore.</li>
-        <li><b>Il caso peggiore</b> — tutti i conti usano la linea di <b>supporto</b>, il 5° percentile: nella storia di Bitcoin il prezzo è stato più in basso solo cinque giorni su cento. Sulla mediana servirebbero ${fmtBTC(fabbisogno(base, lineaDi(base, CEN)).btcNecessari)} BTC invece di ${fmtBTC(rCentro.btcNecessari)}.</li>
+        <li><b>Il caso peggiore, dove conta</b> — quanti bitcoin ti servono si calcola sulla linea di <b>supporto</b>, il 5° percentile: nella storia di Bitcoin il prezzo è stato più in basso solo cinque giorni su cento. Sulla mediana ne basterebbero ${fmtBTC(fabbisogno(base, lineaDi(base, CEN)).btcNecessari)} invece di ${fmtBTC(rCentro.btcNecessari)}.</li>
+        <li><b>La mediana, dove ha senso</b> — i prezzi a cui compri durante l'accumulo escono invece dalla <b>mediana</b>: su ${fmt(Math.round(rCentro.attesa * 12))} versamenti il prezzo medio pagato tende lì per costruzione, e comprare per anni ai prezzi del tetto è uno scenario che il corridoio non contempla. Sul supporto il versamento sarebbe ${c.sym} ${fmt(pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, SUP), stack)?.mensile || 0)}, sulla resistenza ${c.sym} ${fmt(pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, RES), stack)?.mensile || 0)}.</li>
         <li><b>Un solo modello di prezzo</b> — la legge di potenza, coi parametri rifatti il ${PL_DATA_FIT} su ${fmt(PL_PUNTI)} giorni di storia: esponente ${String(PL_N).replace(".", ",")}, R² ${String(PL_R2).replace(".", ",")}. Nessun tasso di crescita scelto a mano.</li>
         <li><b>La crescita rallenta</b> — vale n/t, per costruzione: ${fmtPct(crescitaIstantanea(d0))} adesso, ${fmtPct(crescitaIstantanea(d0 + 10 * 365.25))} fra dieci anni, ${fmtPct(crescitaIstantanea(d0 + 30 * 365.25))} fra trenta.</li>
         <li><b>Decumulo programmato</b> — ${rCentro.anni} prelievi dai ${base.etaInizio} ai ${ETA_MAX} anni. Alla fine non resta niente: è voluto, non è una rendita perpetua.</li>
