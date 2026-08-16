@@ -380,28 +380,62 @@ function stackInBTC() {
   return v > 1000 ? v / 1e8 : v;
 }
 
-/** Il costo medio non si chiede: si ricava da quanto hai speso in tutto. */
-function calcolaCostoMedio() {
-  const speso = parseFloat($investito.value || "0");
+/**
+ * I tre campi del tuo Bitcoin sono legati da una sola relazione:
+ *
+ *     quanto hai investito = prezzo medio di carico × bitcoin posseduti
+ *
+ * Quindi non si chiedono tutti e tre: se ne scrivi due, il terzo esce da solo.
+ * `ultimoScritto` ricorda quale dei due — spesa totale o prezzo medio — hai
+ * toccato per ultimo, così quando cambi la quantità di bitcoin si ricalcola
+ * l'altro e non quello che stavi scrivendo.
+ */
+let ultimoScritto = "investito";
+
+function sincronizzaCosto(origine) {
   const btc = stackInBTC();
+  const speso = parseFloat($investito.value || "0");
+  const medio = parseFloat($costo.value || "0");
+  if (origine === "investito" || origine === "costo") ultimoScritto = origine;
+
+  if (btc > 0) {
+    if (origine === "costo" || (origine === "stack" && ultimoScritto === "costo" && medio > 0)) {
+      if (medio > 0) $investito.value = Math.round(medio * btc);
+    } else if (speso > 0) {
+      $costo.value = Math.round(speso / btc);
+    }
+  }
+  mostraNotaCosto();
+}
+
+function mostraNotaCosto() {
+  const btc = stackInBTC();
+  const medio = parseFloat($costo.value || "0");
+  const speso = parseFloat($investito.value || "0");
   const nota = $("notaCosto");
-  if (speso > 0 && btc > 0) {
-    const medio = speso / btc;
-    $costo.value = Math.round(medio);
+
+  if (medio > 0 && btc > 0) {
     const p = parseFloat($prezzo.value || "0");
+    const sym = PAESI[$paese.value].sym;
     const segno = p > 0
       ? (medio > p
           ? ` Oggi Bitcoin sta sotto: sei in perdita del ${fmtPct(1 - p / medio)} e su una vendita non pagheresti imposta.`
           : ` Il ${fmtPct(1 - medio / p)} del valore attuale è plusvalenza tassabile.`)
       : "";
-    nota.innerHTML = `Calcolato: <b>${PAESI[$paese.value].sym} ${fmt(medio)}</b> per bitcoin.${segno}`;
+    const detto = ultimoScritto === "costo"
+      ? `Hai investito in tutto <b>${sym} ${fmt(speso)}</b>.`
+      : `Prezzo medio: <b>${sym} ${fmt(medio)}</b> per bitcoin.`;
+    nota.innerHTML = detto + segno;
     nota.classList.add("nota-viva");
   } else {
-    nota.textContent = "Si compila da solo se riempi i due campi qui sopra. Serve per l'imposta: si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
+    nota.textContent = "Scrivine due e il terzo si compila da solo: la spesa totale è il prezzo medio moltiplicato per i bitcoin che hai. Serve per l'imposta, che si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
     nota.classList.remove("nota-viva");
   }
   $("suntoStack").textContent = btc > 0 ? `${fmtBTC(btc)} BTC` : "niente";
 }
+
+/** Compatibilità: l'avvio e il cambio paese chiamano ancora questo nome. */
+const calcolaCostoMedio = () => mostraNotaCosto();
 
 function leggiInput() {
   const eta = clamp(parseInt($eta.value, 10) || 35, 18, 95);
@@ -637,11 +671,11 @@ $eta.addEventListener("change", () => {
     adattaLarghezza($etaInizio);
   }
 });
-$prezzo.addEventListener("input", () => { prezzoManuale = true; calcolaCostoMedio(); });
+$prezzo.addEventListener("input", () => { prezzoManuale = true; mostraNotaCosto(); });
 $("badgePrezzo").addEventListener("click", () => caricaPrezzo(true).then(render));
-$investito.addEventListener("input", calcolaCostoMedio);
-$stack.addEventListener("input", calcolaCostoMedio);
-$costo.addEventListener("input", () => { $investito.value = ""; calcolaCostoMedio(); });
+$investito.addEventListener("input", () => sincronizzaCosto("investito"));
+$costo.addEventListener("input", () => sincronizzaCosto("costo"));
+$stack.addEventListener("input", () => sincronizzaCosto("stack"));
 
 // ------------------------------------------------------------
 // Avvio: la pagina apre già con una risposta, non con un modulo vuoto
