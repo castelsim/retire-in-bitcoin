@@ -367,7 +367,17 @@ function aggiornaValuta() {
   const f = FISCO[$paese.value];
   $("fiscoEtichetta").textContent = f.etichetta;
   $("fiscoNota").textContent = f.nota;
+  // La durata di detenzione conta solo dove esiste un'esenzione: altrove
+  // la domanda non ha senso e la casella sparisce.
   $("rigaOltreAnno").classList.toggle("hidden", !f.esenteOltreAnno);
+  if (f.esenteOltreAnno) {
+    const durata = $paese.value === "Portogallo" ? "365 giorni" : "dodici mesi";
+    const senza = $paese.value === "Portogallo" ? "il 28%" : "fino al 45%";
+    $("notaOltreAnno").innerHTML =
+      `In ${$paese.value} l'imposta si azzera solo sui lotti tenuti per più di ${durata}: `
+      + `togliendo la spunta si paga ${senza} sulla plusvalenza. `
+      + `Se accumuli da tempo e comincerai a vendere fra anni, è così — lasciala com'è.`;
+  }
   if (!prezzoManuale) applicaPrezzoLive();
   calcolaCostoMedio();
   adattaTutti();
