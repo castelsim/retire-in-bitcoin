@@ -404,17 +404,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 .legenda .k { color: var(--keep); }
 .legenda .t { color: var(--tax); }
 
-/* Quanto versare: il numero che l utente puo davvero controllare */
-.verso { margin: 1.25rem 0 1rem; display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
-.verso .grande {
-  font-family: var(--mono);
-  font-size: clamp(2rem, 5vw, 2.9rem);
-  font-weight: 700;
-  color: var(--keep);
-  letter-spacing: -.02em;
-}
-.verso-nota { font-family: var(--mono); font-size: .8rem; color: var(--faint); }
-.sorpresa { border-left: 2px solid var(--keep); padding-left: 1rem; }
 
 /* Il grafico: il fatto (bianco, continuo) contro il modello (verde, tratteggiato).
    Il tratteggio è il secondo segnale, così l'identità non dipende dal solo colore. */

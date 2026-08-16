@@ -703,28 +703,6 @@ function render() {
            <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}</p>`}
     </div>`;
 
-  // — Il dettaglio del versamento
-  let accumuloBox = "";
-  if (pa) {
-    const paSup = pianoDiAccumulo(base, lineaDi(base, SUP), stack);
-    const paRes = pianoDiAccumulo(base, lineaDi(base, RES), stack);
-    const scartoFraLinee = Math.abs(paRes.mensile - paSup.mensile) / Math.max(1, pa.mensile);
-    accumuloBox = pa.giaCoperto
-      ? `<section class="blocco">
-           <h2>Non devi investire altro</h2>
-           <p class="intro">I ${fmtBTC(stack)} BTC che hai già superano l'obiettivo di ${fmtBTC(pa.btcObiettivo)}. Da qui in poi basta non venderli.</p>
-         </section>`
-      : `<section class="blocco">
-      <h2>Perché quella cifra, e non un'altra</h2>
-      ${scartoFraLinee < 0.02 ? `
-      <p class="intro sorpresa">E qui c'è la cosa che non ti aspetti: <b>la cifra è la stessa su tutte e tre le linee del corridoio</b>.
-      Se Bitcoin salirà molto te ne serviranno meno, ma li pagherai di più; se salirà poco te ne serviranno di più, e costeranno meno.
-      In euro i due effetti si annullano. <b>Quanto devi versare non dipende da quale scenario si avvererà</b> — dipende solo da quanto ti serve e da quanto tempo hai.</p>`
-      : `<p class="intro">Sulla linea bassa servirebbero ${c.sym} ${fmt(paSup.mensile)} al mese, su quella alta ${c.sym} ${fmt(paRes.mensile)}: la differenza è piccola perché i due effetti — più bitcoin necessari, prezzo più basso — quasi si annullano.</p>`}
-      <p class="nota">Il conto assume che tu compri ai prezzi della linea centrale, che oggi sta sopra il mercato: al momento Bitcoin vale meno di quanto il modello dica, quindi i primi acquisti costeranno meno e la cifra qui sopra è prudente. Comprare ogni mese la stessa cifra è l'ipotesi più semplice, e serve a dare un ordine di grandezza — non è un consiglio su come farlo.</p>
-    </section>`;
-  }
-
   // — La timeline: è questa che spiega il numero
   const righe = rCentro.righe;
   const ogniQuanti = righe.length > 26 ? 2 : 1;   // sopra i 26 anni si mostra un anno sì e uno no
@@ -912,7 +890,7 @@ function render() {
 
   $grafico.innerHTML = grafico(base, cambio) + `<div id="verdetto">${testa}</div>`;
   $corridoio.innerHTML = corridoioBox;
-  $out.innerHTML = accumuloBox + timelineBox + scenariBox + fiscoBox + paesiBox + ipotesi;
+  $out.innerHTML = timelineBox + scenariBox + fiscoBox + paesiBox + ipotesi;
 }
 
 // ------------------------------------------------------------
