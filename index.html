@@ -76,14 +76,21 @@
     </div>
 
     <div class="campo">
-      <label for="costoMedio">Quanto l'hai pagato in media (<span class="sym">€</span>)</label>
-      <input id="costoMedio" type="number" min="0" step="100" value="0" />
-      <small>Serve per l'imposta: si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto. Lascia 0 se non lo sai — è l'ipotesi più cara.</small>
+      <label for="stack">Quanti BTC hai adesso</label>
+      <input id="stack" type="number" step="0.00000001" min="0" placeholder="0" />
+      <small>Puoi scrivere anche i satoshi: 28392600 diventa 0,283926 BTC.</small>
     </div>
 
     <div class="campo">
-      <label for="stack">Quanti BTC hai adesso</label>
-      <input id="stack" type="number" step="0.0001" min="0" placeholder="0" />
+      <label for="investito">Quanto hai investito in tutto (<span class="sym">€</span>)</label>
+      <input id="investito" type="number" min="0" step="100" placeholder="0" />
+      <small>La somma di tutti i tuoi acquisti. Il tuo exchange la chiama «totale investito» o «costo».</small>
+    </div>
+
+    <div class="campo">
+      <label for="costoMedio">Prezzo medio di carico (<span class="sym">€</span>)</label>
+      <input id="costoMedio" type="number" min="0" step="100" value="0" />
+      <small id="notaCosto">Si compila da solo se riempi i due campi qui accanto. Serve per l'imposta: si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.</small>
     </div>
 
   </div>

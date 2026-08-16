@@ -320,6 +320,7 @@ function aggiornaValuta() {
   $("fiscoNota").textContent = f.nota;
   $("rigaOltreAnno").classList.toggle("hidden", !f.esenteOltreAnno);
   aggiornaStili();
+  if (document.getElementById("investito")) calcolaCostoMedio();
 }
 
 function aggiornaStili() {
@@ -335,6 +336,44 @@ $paese.addEventListener("change", aggiornaValuta);
 $stile.addEventListener("change", () => $rigaCustom.classList.toggle("hidden", $stile.value !== "custom"));
 $prezzo.addEventListener("input", () => { prezzoManuale = true; });
 $("badgePrezzo").addEventListener("click", () => caricaPrezzo(true));
+
+/** Chi ha meno di un Bitcoin ragiona in satoshi: 28392600 sono 0,283926 BTC.
+ *  Nessuno che usa questo calcolatore possiede mille Bitcoin, quindi la soglia è netta. */
+function stackInBTC() {
+  const v = parseFloat($stack.value || "0");
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  return v > 1000 ? v / 1e8 : v;
+}
+
+/** Il costo medio non si chiede: si ricava da quanto hai speso in tutto. */
+function calcolaCostoMedio() {
+  const speso = parseFloat($("investito").value || "0");
+  const btc = stackInBTC();
+  const nota = $("notaCosto");
+  if (speso > 0 && btc > 0) {
+    const medio = speso / btc;
+    $costo.value = Math.round(medio);
+    const p = parseFloat($prezzo.value || "0");
+    const segno = p > 0
+      ? (medio > p
+          ? ` Oggi Bitcoin sta sotto: sei in perdita del ${fmtPct(1 - p / medio)} e su una vendita non pagheresti imposta.`
+          : ` Il ${fmtPct(1 - medio / p)} del valore attuale è plusvalenza tassabile.`)
+      : "";
+    nota.innerHTML = `Calcolato: <b>${PAESI[$paese.value].sym} ${fmt(medio)}</b> per Bitcoin.${segno}`;
+    nota.classList.add("nota-viva");
+  } else {
+    nota.textContent = "Si compila da solo se riempi i due campi qui accanto. Serve per l'imposta: si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
+    nota.classList.remove("nota-viva");
+  }
+}
+
+$("investito").addEventListener("input", calcolaCostoMedio);
+$stack.addEventListener("input", calcolaCostoMedio);
+$costo.addEventListener("input", () => {
+  // Se lo scrive a mano vince lui: smetto di sovrascriverlo.
+  $("investito").value = "";
+  calcolaCostoMedio();
+});
 
 // ------------------------------------------------------------
 // Render
@@ -371,7 +410,7 @@ $form.addEventListener("submit", e => {
   e.preventDefault();
   const base = leggiInput();
   const c = PAESI[base.paese];
-  const stack = parseFloat($stack.value || "0");
+  const stack = stackInBTC();
 
   if (!Number.isFinite(base.spesaAnnua) || base.spesaAnnua <= 0) {
     $out.innerHTML = `<p class="errore">Manca l'importo annuo. Scegli uno stile di vita o scrivi quanto ti costa un anno.</p>`;
@@ -474,7 +513,7 @@ $form.addEventListener("submit", e => {
         ${stack > 0 ? `
           <div class="cop">
             ${barra(cop)}
-            <p>${fmtBTC(stack)} BTC coprono il <b>${(cop * 100).toFixed(1)}%</b>${anno ? ` · basterebbero dal <b>${anno}</b>` : " · non bastano entro i 100 anni"}</p>
+            <p>${fmtBTC(stack)} BTC coprono il <b>${fmtPct(cop)}</b>${anno ? ` · basterebbero dal <b>${anno}</b>` : " · non bastano entro i 100 anni"}</p>
           </div>` : ""}
         <p class="tenuta ${tenuta.regge ? "ok" : "ko"}">
           ${tenuta.regge
