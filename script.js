@@ -169,14 +169,16 @@ function imposta(paese, plusvalenza, oltreUnAnno) {
 
 /**
  * Quanto devo vendere (lordo) per ritrovarmi `netto` in tasca.
- * Vendendo X al prezzo p con costo medio c, la plusvalenza è X·(1 − c/p).
+ *
+ * L'imposta si calcola sul CASO PEGGIORE: tutto l'importo venduto è
+ * plusvalenza, come se i bitcoin li avessi avuti a costo zero. Chi li ha
+ * pagati qualcosa pagherà meno di così — mai di più.
+ *
  * Con gli scaglioni spagnoli serve un punto fisso: poche passate bastano.
  */
-function lordoPerNetto(paese, netto, prezzo, costoMedio, oltreUnAnno) {
-  const quotaPlus = Math.max(0, 1 - (costoMedio || 0) / prezzo);
-  if (quotaPlus === 0) return { lordo: netto, aliquotaEff: 0 };
+function lordoPerNetto(paese, netto, prezzo, oltreUnAnno) {
   let lordo = netto;
-  for (let i = 0; i < 6; i++) lordo = netto + imposta(paese, lordo * quotaPlus, oltreUnAnno);
+  for (let i = 0; i < 6; i++) lordo = netto + imposta(paese, lordo, oltreUnAnno);
   return { lordo, aliquotaEff: 1 - netto / lordo };
 }
 
@@ -206,7 +208,7 @@ function simula(p, linea, btc0) {
     const prezzo = linea(anniDaOggi);
     // L'importo è il potere d'acquisto di oggi: si rivaluta ogni anno.
     const netto = p.nettoAnnuo * Math.pow(1 + infl, anniDaOggi);
-    const { lordo } = lordoPerNetto(p.paese, netto, prezzo, p.costoMedio, p.oltreUnAnno);
+    const { lordo } = lordoPerNetto(p.paese, netto, prezzo, p.oltreUnAnno);
     const venduti = lordo / prezzo;
     const prima = btc;
     btc -= venduti;
@@ -232,7 +234,7 @@ function fabbisognoLiscio(p, linea) {
   const anni = Math.max(0, ETA_MAX - p.etaInizio);
   const prezzoInizio = linea(attesa);
   const nettoInizio = p.nettoAnnuo * Math.pow(1 + PAESI[p.paese].infl, attesa);
-  const { lordo, aliquotaEff } = lordoPerNetto(p.paese, nettoInizio, prezzoInizio, p.costoMedio, p.oltreUnAnno);
+  const { lordo, aliquotaEff } = lordoPerNetto(p.paese, nettoInizio, prezzoInizio, p.oltreUnAnno);
 
   let lo = 0, hi = (anni * lordo) / prezzoInizio + 1e-8;
   if (!simula(p, linea, hi).bastano) hi *= 4;
@@ -253,9 +255,6 @@ function fabbisognoLiscio(p, linea) {
  * accumulati sono P × Σ(1/prezzo). Quindi P si ricava per divisione, senza
  * cercarlo a tentoni.
  *
- * C'è un giro: quello che compri adesso alza il tuo costo medio, il costo medio
- * abbassa l'imposta futura, e con meno imposta servono meno bitcoin. Tre passate
- * di punto fisso bastano a chiudere il cerchio.
  */
 function pianoDiAccumulo(p, linea, stack) {
   const mesi = Math.max(0, Math.round((p.etaInizio - p.eta) * 12));
@@ -265,28 +264,15 @@ function pianoDiAccumulo(p, linea, stack) {
   let btcPerEuroMensile = 0;
   for (let m = 0; m < mesi; m++) btcPerEuroMensile += 1 / linea(m / 12);
 
-  let obiettivo = fabbisogno(p, linea).btcNecessari;
-  let mensile = 0, costoMedio = p.costoMedio;
-
-  for (let giro = 0; giro < 2; giro++) {
-    const mancano = Math.max(0, obiettivo - stack);
-    mensile = mancano / btcPerEuroMensile;
-    const speso = mensile * mesi;
-    const btcComprati = mancano;
-    // Media pesata fra quello che avevi già e quello che comprerai.
-    costoMedio = (stack + btcComprati) > 0
-      ? (stack * p.costoMedio + speso) / (stack + btcComprati)
-      : p.costoMedio;
-    obiettivo = fabbisogno({ ...p, costoMedio }, linea).btcNecessari;
-  }
-
+  // Niente giri di punto fisso: l'imposta non dipende più da quanto hai pagato.
+  const obiettivo = fabbisogno(p, linea).btcNecessari;
   const mancano = Math.max(0, obiettivo - stack);
+  const mensile = mancano / btcPerEuroMensile;
   return {
     mensile, mesi, anni: mesi / 12,
     totale: mensile * mesi,
     btcObiettivo: obiettivo,
     btcDaComprare: mancano,
-    costoMedioFinale: costoMedio,
     giaCoperto: mancano === 0,
   };
 }
@@ -452,7 +438,7 @@ function applicaPrezzoLive() {
 // ------------------------------------------------------------
 const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
-const $prezzo = $("prezzoOggi"), $costo = $("costoMedio"), $stack = $("stack"), $investito = $("investito");
+const $prezzo = $("prezzoOggi"), $stack = $("stack");
 const $oltreAnno = $("oltreUnAnno");
 const $out = $("risultati"), $grafico = $("grafico"), $corridoio = $("corridoio");
 
@@ -490,9 +476,7 @@ const adattaTutti = () =>
 function aggiornaValuta() {
   const c = PAESI[$paese.value];
   document.querySelectorAll(".sym").forEach(e => (e.textContent = c.sym));
-  $("paeseNome").textContent = $paese.value;
   const f = FISCO[$paese.value];
-  $("fiscoEtichetta").textContent = f.etichetta;
   // La durata di detenzione conta solo dove esiste un'esenzione: altrove
   // la domanda non ha senso e la casella sparisce.
   $("rigaOltreAnno").classList.toggle("hidden", !f.esenteOltreAnno);
@@ -516,70 +500,12 @@ function stackInBTC() {
   return v > 1000 ? v / 1e8 : v;
 }
 
-/**
- * I tre campi del tuo Bitcoin sono legati da una relazione sola:
- *
- *     quanto hai investito = prezzo medio di carico × bitcoin posseduti
- *
- * Quindi non si chiedono tutti e tre: se ne scrivi due, il terzo esce da solo,
- * in qualunque combinazione. `toccati` tiene i due campi che hai scritto per
- * ultimi: il terzo è quello che viene calcolato, così non ti si riscrive mai
- * sotto le dita quello su cui stai lavorando.
- */
-const CAMPI_BTC = ["stack", "investito", "costo"];
-let toccati = ["investito", "costo"];
-
-function sincronizzaCosto(origine) {
-  if (CAMPI_BTC.includes(origine)) {
-    toccati = [origine, ...toccati.filter(x => x !== origine)].slice(0, 2);
-  }
-  const daCalcolare = CAMPI_BTC.find(x => !toccati.includes(x));
-
+/** Chi ha meno di un bitcoin ragiona in satoshi: 28392600 sono 0,283926 BTC. */
+function aggiornaSunto() {
   const btc = stackInBTC();
-  const speso = parseFloat($investito.value || "0");
-  const medio = parseFloat($costo.value || "0");
-
-  if (daCalcolare === "stack" && speso > 0 && medio > 0) {
-    const q = speso / medio;
-    // Sotto un bitcoin si scrive volentieri in satoshi, ma qui il campo
-    // accetta entrambi: si mostra in BTC con otto decimali, senza zeri inutili.
-    $stack.value = parseFloat(q.toFixed(8));
-  } else if (daCalcolare === "investito" && btc > 0 && medio > 0) {
-    $investito.value = Math.round(medio * btc);
-  } else if (daCalcolare === "costo" && btc > 0 && speso > 0) {
-    $costo.value = Math.round(speso / btc);
-  }
-  mostraNotaCosto(daCalcolare);
-}
-
-function mostraNotaCosto(calcolato) {
-  const btc = stackInBTC();
-  const medio = parseFloat($costo.value || "0");
-  const speso = parseFloat($investito.value || "0");
-  const nota = $("notaCosto");
-  const sym = PAESI[$paese.value].sym;
-
-  if (medio > 0 && btc > 0) {
-    const p = parseFloat($prezzo.value || "0");
-    const segno = p > 0
-      ? (medio > p
-          ? ` Oggi Bitcoin sta sotto: sei in perdita del ${fmtPct(1 - p / medio)} e su una vendita non pagheresti imposta.`
-          : ` Plusvalenza tassabile: ${fmtPct(1 - medio / p)} del valore attuale.`)
-      : "";
-    const detto = calcolato === "stack" ? `Vengono <b>${fmtBTC(btc)} BTC</b>.`
-                : calcolato === "investito" ? `Hai investito in tutto <b>${sym} ${fmt(speso)}</b>.`
-                : `Prezzo medio: <b>${sym} ${fmt(medio)}</b> per bitcoin.`;
-    nota.innerHTML = detto + segno;
-    nota.classList.add("nota-viva");
-  } else {
-    nota.textContent = "Scrivine due qualunque e il terzo si compila da solo: la spesa totale è il prezzo medio moltiplicato per i bitcoin che hai. Serve per l'imposta, che si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
-    nota.classList.remove("nota-viva");
-  }
   $("suntoStack").textContent = btc > 0 ? `${fmtBTC(btc)} BTC` : "niente";
 }
-
-/** Compatibilità: l'avvio e il cambio paese chiamano ancora questo nome. */
-const calcolaCostoMedio = () => mostraNotaCosto(null);
+const calcolaCostoMedio = aggiornaSunto;   // il nome vecchio, chiamato all'avvio
 
 function leggiInput() {
   const eta = clamp(parseInt($eta.value, 10) || 35, 18, 95);
@@ -590,7 +516,6 @@ function leggiInput() {
     etaInizio: clamp(parseInt($etaInizio.value, 10) || eta, eta, ETA_MAX - 1),
     nettoAnnuo: parseFloat($netto.value || "0"),
     prezzoOggi: parseFloat($prezzo.value),
-    costoMedio: parseFloat($costo.value || "0"),
     oltreUnAnno: $oltreAnno.checked,
     // Il corridoio è in dollari: serve il cambio per portarlo nella valuta locale.
     cambioUsd: prezziLive.usd ? parseFloat($prezzo.value) / prezziLive.usd : null,
@@ -800,7 +725,7 @@ function render() {
     if (!pz) return null;
     const fattore = PAESI[n].valuta === c.valuta ? 1 : pz / base.prezzoOggi;
     const q = { ...base, paese: n, nettoAnnuo: base.nettoAnnuo * fattore,
-                prezzoOggi: pz, costoMedio: base.costoMedio * fattore,
+                prezzoOggi: pz,
                 cambioUsd: prezziLive.usd ? pz / prezziLive.usd : null };
     return { n, btc: fabbisogno(q, lineaDi(q, RIF)).btcNecessari, et: FISCO[n].etichetta };
   }).filter(Boolean).sort((a, b) => a.btc - b.btc);
@@ -929,11 +854,8 @@ $eta.addEventListener("change", () => {
     adattaLarghezza($etaInizio);
   }
 });
-$prezzo.addEventListener("input", () => { prezzoManuale = true; mostraNotaCosto(); });
+$prezzo.addEventListener("input", () => { prezzoManuale = true; });
 $("badgePrezzo").addEventListener("click", () => caricaPrezzo(true).then(render));
-$investito.addEventListener("input", () => sincronizzaCosto("investito"));
-$costo.addEventListener("input", () => sincronizzaCosto("costo"));
-$stack.addEventListener("input", () => sincronizzaCosto("stack"));
 
 // ------------------------------------------------------------
 // Avvio: la pagina apre già con una risposta, non con un modulo vuoto

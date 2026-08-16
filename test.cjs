@@ -8,15 +8,15 @@ const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
 const base={paese:'Italia',eta:35,etaInizio:50,nettoAnnuo:10000,prezzoOggi:54400,
- costoMedio:0,oltreUnAnno:true,cambioUsd:54400/63000};
+ oltreUnAnno:true,cambioUsd:54400/63000};
 const [SUP,CEN,RES]=SCENARI;
 const fab=(o,sc)=>fabbisogno(o,lineaDi(o,sc)).btcNecessari;
 
 console.log('\n--- 1. IMPOSTA ---');
-ok('Italia: effettiva sotto il 33% nominale', lordoPerNetto('Italia',18000,200000,66000,true).aliquotaEff<0.33);
-ok('Germania oltre 12 mesi: zero', lordoPerNetto('Germania',18000,200000,66000,true).lordo===18000);
-ok('Portogallo oltre 365 giorni: zero', lordoPerNetto('Portogallo',18000,200000,66000,true).lordo===18000);
-ok('Spagna a scaglioni fra 10% e 27%', (e=>e>0.10&&e<0.27)(lordoPerNetto('Spagna',18000,200000,66000,true).aliquotaEff));
+ok('Italia: aliquota piena, 33% su tutto', Math.abs(lordoPerNetto('Italia',18000,200000,true).aliquotaEff-0.33)<0.001, 'caso peggiore');
+ok('Germania oltre 12 mesi: zero', lordoPerNetto('Germania',18000,200000,true).lordo===18000);
+ok('Portogallo oltre 365 giorni: zero', lordoPerNetto('Portogallo',18000,200000,true).lordo===18000);
+ok('Spagna a scaglioni fra 10% e 27%', (e=>e>0.10&&e<0.27)(lordoPerNetto('Spagna',18000,200000,true).aliquotaEff));
 
 console.log('\n--- 2. LEGGE DI POTENZA E CORRIDOIO ---');
 const d=giorniDaGenesi();
@@ -48,7 +48,7 @@ ok('cominciare subito costa molto di piu', fab({...base,etaInizio:35},CEN)>r.btc
 ok('essere piu giovani (piu attesa) costa meno', fab({...base,eta:25},CEN)<r.btcNecessari);
 ok('la linea alta chiede meno della bassa', fab(base,RES)<fab(base,CEN) && fab(base,CEN)<fab(base,SUP));
 ok('Italia costa piu della Germania', r.btcNecessari>fab({...base,paese:'Germania'},CEN));
-ok('un costo medio alto abbassa il fabbisogno', fab({...base,costoMedio:300000},CEN)<r.btcNecessari);
+
 ok('il bollo erode anche negli anni di attesa',
    fab({...base,paese:'Italia'},CEN) > fab({...base,paese:'Polonia'},CEN)*0.9);
 

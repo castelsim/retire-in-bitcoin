@@ -242,8 +242,6 @@ label {
 }
 small { font-size: .78rem; color: var(--faint); line-height: 1.45; }
 /* Quando il campo si è compilato da solo, la spiegazione diventa un risultato. */
-small.nota-viva { color: var(--muted); }
-small.nota-viva b { color: var(--keep); font-family: var(--mono); }
 
 input[type="number"], input[type="text"], select {
   font-family: var(--mono);
