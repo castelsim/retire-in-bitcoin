@@ -254,25 +254,33 @@ function primoAnnoSufficiente(p, stack) {
 let prezziLive = { eur: null, pln: null };
 let prezzoManuale = false;
 
-async function caricaPrezzo() {
+/** `forzato` = l'ha chiesto l'utente: riporta il campo al prezzo di mercato
+ *  anche se lo aveva scritto a mano, altrimenti il pulsante sembra rotto. */
+async function caricaPrezzo(forzato = false) {
   const badge = document.getElementById("badgePrezzo");
   badge.textContent = "aggiorno…";
   badge.className = "badge badge-wait";
+  badge.disabled = true;
   try {
-    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur,pln");
+    const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=eur,pln&_=" + Date.now());
     if (!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json();
     prezziLive.eur = d.bitcoin.eur;
     prezziLive.pln = d.bitcoin.pln;
+    if (forzato) prezzoManuale = false;
     if (!prezzoManuale) applicaPrezzoLive();
     badge.textContent = "live " + new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
     badge.className = "badge badge-live";
+    badge.title = "Rileggi il prezzo da CoinGecko";
   } catch (e) {
     // Nessun prezzo inventato: un valore di ripiego sbagliato falsa
     // ogni numero della pagina senza che si veda.
-    badge.textContent = "prezzo non disponibile — inseriscilo tu";
+    badge.textContent = "non arriva — riprova";
     badge.className = "badge badge-off";
-    document.getElementById("prezzoOggi").focus();
+    badge.title = "CoinGecko non ha risposto. Premi per riprovare, oppure scrivi il prezzo a mano.";
+    if (!prezzoManuale && !$prezzo.value) $prezzo.focus();
+  } finally {
+    badge.disabled = false;
   }
 }
 
@@ -326,6 +334,7 @@ $eta.addEventListener("input", () => ($etaVal.textContent = $eta.value));
 $paese.addEventListener("change", aggiornaValuta);
 $stile.addEventListener("change", () => $rigaCustom.classList.toggle("hidden", $stile.value !== "custom"));
 $prezzo.addEventListener("input", () => { prezzoManuale = true; });
+$("badgePrezzo").addEventListener("click", () => caricaPrezzo(true));
 
 // ------------------------------------------------------------
 // Render

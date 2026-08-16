@@ -124,6 +124,11 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   color: var(--tax);
   margin: .1rem 0 0;
 }
+/* Il badge dice quando il prezzo è stato letto ed è anche il modo di rileggerlo:
+   l'area cliccabile arriva a 44 px senza gonfiare il testo. */
+.riga-etichetta { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.riga-etichetta label { margin: 0; }
+
 .badge {
   font-family: var(--mono);
   font-size: .7rem;
@@ -131,7 +136,21 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   padding: .18rem .45rem;
   border-radius: 4px;
   letter-spacing: .04em;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
+.badge::before {
+  content: "↻";
+  font-size: .95em;
+  margin-right: .35em;
+  opacity: .75;
+}
+.badge:hover:not(:disabled) { border-color: currentColor; }
+.badge:disabled { cursor: progress; }
 .badge-live { background: rgba(79,224,192,.14); color: var(--keep); }
 .badge-wait { background: rgba(134,152,183,.14); color: var(--muted); }
 .badge-off  { background: rgba(255,122,122,.14); color: var(--ko); }
