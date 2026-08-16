@@ -52,8 +52,35 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   margin: 0 auto;
   padding: 1.5rem 1.25rem .75rem;
 }
+.testata { display: flex; align-items: baseline; gap: 1rem; flex-wrap: nowrap; }
+/* Il prezzo di adesso sta in alto a destra: si legge, non si compila quasi mai. */
+.prezzo-live {
+  margin: 0 0 0 auto;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--faint);
+}
+.prezzo-live input.inline {
+  font-size: .92rem;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  padding: .15rem .1rem;
+  min-height: 38px;
+  text-align: right;
+}
+.prezzo-live .sym { color: var(--muted); }
+.prezzo-live .badge { min-height: 38px; }
+
 .marchio {
   margin: 0;
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: .95rem;
   font-weight: 600;
   color: var(--text);
@@ -62,7 +89,7 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   gap: .75rem;
   flex-wrap: wrap;
 }
-.marchio span {
+.marchio span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-family: var(--mono);
   font-size: .68rem;
   font-weight: 400;

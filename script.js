@@ -439,7 +439,6 @@ function applicaPrezzoLive() {
 const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
 const $prezzo = $("prezzoOggi"), $stack = $("stack");
-const $oltreAnno = $("oltreUnAnno");
 const $out = $("risultati"), $grafico = $("grafico"), $corridoio = $("corridoio");
 
 Object.keys(PAESI).forEach(n => {
@@ -479,17 +478,7 @@ function aggiornaValuta() {
   const f = FISCO[$paese.value];
   // La durata di detenzione conta solo dove esiste un'esenzione: altrove
   // la domanda non ha senso e la casella sparisce.
-  $("rigaOltreAnno").classList.toggle("hidden", !f.esenteOltreAnno);
-  if (f.esenteOltreAnno) {
-    const durata = $paese.value === "Portogallo" ? "365 giorni" : "dodici mesi";
-    const senza = $paese.value === "Portogallo" ? "il 28%" : "fino al 45%";
-    $("notaOltreAnno").innerHTML =
-      `In ${$paese.value} l'imposta si azzera solo sui lotti tenuti per più di ${durata}: `
-      + `togliendo la spunta si paga ${senza} sulla plusvalenza. `
-      + `Se accumuli da tempo e comincerai a vendere fra anni, è così — lasciala com'è.`;
-  }
   if (!prezzoManuale) applicaPrezzoLive();
-  calcolaCostoMedio();
   adattaTutti();
 }
 
@@ -500,13 +489,6 @@ function stackInBTC() {
   return v > 1000 ? v / 1e8 : v;
 }
 
-/** Chi ha meno di un bitcoin ragiona in satoshi: 28392600 sono 0,283926 BTC. */
-function aggiornaSunto() {
-  const btc = stackInBTC();
-  $("suntoStack").textContent = btc > 0 ? `${fmtBTC(btc)} BTC` : "niente";
-}
-const calcolaCostoMedio = aggiornaSunto;   // il nome vecchio, chiamato all'avvio
-
 function leggiInput() {
   const eta = clamp(parseInt($eta.value, 10) || 35, 18, 95);
   return {
@@ -516,7 +498,9 @@ function leggiInput() {
     etaInizio: clamp(parseInt($etaInizio.value, 10) || eta, eta, ETA_MAX - 1),
     nettoAnnuo: parseFloat($netto.value || "0"),
     prezzoOggi: parseFloat($prezzo.value),
-    oltreUnAnno: $oltreAnno.checked,
+    // Chi accumula e vende dopo anni ha per forza lotti vecchi: si assume,
+    // e lo si scrive fra le ipotesi.
+    oltreUnAnno: true,
     // Il corridoio è in dollari: serve il cambio per portarlo nella valuta locale.
     cambioUsd: prezziLive.usd ? parseFloat($prezzo.value) / prezziLive.usd : null,
   };
@@ -760,6 +744,7 @@ function render() {
         <li><b>La crescita rallenta</b> — vale n/t, per costruzione: ${fmtPct(crescitaIstantanea(d0))} adesso, ${fmtPct(crescitaIstantanea(d0 + 10 * 365.25))} fra dieci anni, ${fmtPct(crescitaIstantanea(d0 + 30 * 365.25))} fra trenta.</li>
         <li><b>Decumulo programmato</b> — ${rCentro.anni} prelievi dai ${base.etaInizio} ai ${ETA_MAX} anni. Alla fine non resta niente: è voluto, non è una rendita perpetua.</li>
         <li><b>Potere d'acquisto di oggi</b> — i ${c.sym} ${fmt(base.nettoAnnuo)} che hai chiesto vengono rivalutati del ${fmtPct(c.infl)} l'anno, prima e durante il decumulo.</li>
+        <li><b>Detenzione oltre l'anno</b> — si assume che i bitcoin venduti siano stati comprati da più di un anno prima: chi accumula adesso e comincia a vendere fra ${rCentro.attesa} anni ha per forza lotti vecchi. In Germania e Portogallo è la condizione che azzera l'imposta.</li>
         <li><b>Imposta</b> — ${f.etichetta}${f.bollo ? `, più il bollo dello ${fmtPct(f.bollo)} annuo, che erode i sat anche nei ${rCentro.attesa} anni in cui non vendi niente` : ""}, sempre e solo sulla plusvalenza.</li>
       </ul>
       <p class="avvertenza">
