@@ -65,6 +65,10 @@ ok('chiedendo il doppio si versa circa il doppio',
    Math.abs(pianoDiAccumulo({...base,nettoAnnuo:20000},L0,0).mensile/pa.mensile-2)<0.15);
 ok('avendo gia dei bitcoin si versa meno', pianoDiAccumulo(base,L0,0.03).mensile < pa.mensile);
 ok('con abbastanza bitcoin non serve versare nulla', pianoDiAccumulo(base,L0,1).giaCoperto);
+// il caso che sbagliava: nessun tempo per accumulare non vuol dire essere a posto
+const subito={...base,etaInizio:base.eta};
+ok('cominciando subito non c e piano di accumulo', pianoDiAccumulo(subito,lineaDi(subito,CEN),0)===null);
+ok('e i bitcoin necessari restano tanti', fab(subito,CEN)>0.5, fab(subito,CEN).toFixed(4)+' BTC');
 // il risultato che conta: in euro le tre linee chiedono lo stesso
 const mS=pianoDiAccumulo(base,lineaDi(base,SUP),0).mensile;
 const mR=pianoDiAccumulo(base,lineaDi(base,RES),0).mensile;

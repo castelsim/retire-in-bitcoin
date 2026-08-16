@@ -645,7 +645,13 @@ function grafico(base, cambio) {
             }).join("");
           })()}
           <circle cx="${oggiX.toFixed(1)}" cy="${py(base.prezzoOggi).toFixed(1)}" r="4" class="g-oggi" />
-          <text x="${(oggiX + 8).toFixed(1)}" y="${(py(base.prezzoOggi) - 8).toFixed(1)}" class="g-nota-oggi">oggi</text>
+          ${// Se la riga del primo prelievo è addosso a «oggi», l'etichetta passa a sinistra.
+            (() => {
+              const vicino = Math.abs(inizioX - oggiX) < 90;
+              return vicino
+                ? `<text x="${(oggiX - 9).toFixed(1)}" y="${(py(base.prezzoOggi) + 14).toFixed(1)}" class="g-nota-oggi" text-anchor="end">oggi</text>`
+                : `<text x="${(oggiX + 8).toFixed(1)}" y="${(py(base.prezzoOggi) - 8).toFixed(1)}" class="g-nota-oggi">oggi</text>`;
+            })()}
         </svg>
         <figcaption>
           <span class="g-leg"><i class="l-storico"></i>prezzo reale</span>
@@ -684,7 +690,14 @@ function render() {
     <div class="verdetto">
       <p class="occhiello">Per incassare ${c.sym} ${fmt(base.nettoAnnuo)} netti ogni anno,
       dai ${base.etaInizio} anni (nel ${annoInizio}) fino ai ${ETA_MAX}, devi mettere da parte</p>
-      ${!pa || pa.giaCoperto
+      ${!pa
+        ? // Cominci subito: non c'è nessun mese per accumulare, servono adesso.
+          (stack >= rCentro.btcNecessari
+            ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
+               <p class="sotto">cominci subito, e i tuoi ${fmtBTC(stack)} BTC coprono già l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
+            : `<p class="cifra">${fmtBTC(rCentro.btcNecessari)}<span class="unita">BTC, adesso</span></p>
+               <p class="sotto">cominciando a prelevare subito non c'è tempo per accumulare: quei bitcoin devi averli già${stack > 0 ? `, e ne hai ${fmtBTC(stack)}` : ""}. Sposta più avanti l'età da cui prelevi e comparirà quanto versare ogni mese.</p>`)
+        : pa.giaCoperto
         ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
            <p class="sotto">i tuoi ${fmtBTC(stack)} BTC coprono già l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
         : `<p class="cifra">${c.sym} ${fmt(pa.mensile)}<span class="unita">al mese</span></p>
