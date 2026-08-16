@@ -104,6 +104,15 @@ const SCENARI = [
 // Serve a far vedere che la curva descrive dei dati, non un'idea.
 // eslint-disable-next-line prefer-const
 let STORICO = [[605,0.07],[635,0.06],[666,0.19],[696,0.28],[727,0.3],[758,0.48],[786,0.96],[817,0.8],[847,3.05],[878,9.12],[908,17.35],[939,14.06],[970,9.11],[1000,4.94],[1031,3.59],[1061,2.98],[1092,4.47],[1123,5.61],[1152,4.98],[1183,4.86],[1213,5.01],[1244,5.18],[1274,6.67],[1305,9.22],[1336,10.91],[1366,12.49],[1397,10.92],[1427,12.61],[1458,13.57],[1489,20.11],[1517,31.27],[1548,92.5],[1578,145],[1609,129],[1639,94.99],[1670,108],[1701,125],[1731,127],[1762,206],[1792,1134],[1823,736],[1854,800],[1882,583],[1913,459],[1943,448],[1974,621],[2004,600],[2035,563],[2066,501],[2096,374],[2127,345],[2157,376],[2188,311],[2219,227],[2247,252],[2278,248],[2308,226],[2339,232],[2369,256],[2400,288],[2431,228],[2461,237],[2492,328],[2522,371],[2553,428],[2584,377],[2613,432],[2644,414],[2674,456],[2705,526],[2735,636],[2766,655],[2797,576],[2827,604],[2858,697],[2888,730],[2919,958],[2950,920],[2978,1194],[3009,1035],[3039,1333],[3070,2205],[3100,2542],[3131,2739],[3162,4583],[3192,4164],[3223,6133],[3253,9646],[3284,12613],[3315,10083],[3343,10629],[3374,6854],[3404,9398],[3435,7387],[3465,6223],[3496,8171],[3527,6987],[3557,6593],[3588,6302],[3618,4279],[3649,3865],[3680,3470],[3708,3833],[3739,4114],[3769,5261],[3800,8272],[3830,11890],[3861,9589],[3892,9578],[3922,8057],[3953,9165],[3983,7757],[4014,7220],[4045,9502],[4074,8712],[4105,6405],[4135,8778],[4166,9698],[4196,9185],[4227,11115],[4258,11708],[4288,10841],[4319,13565],[4349,18192],[4380,28857],[4411,34318],[4439,46156],[4470,58730],[4500,53584],[4531,35685],[4561,35848],[4592,42214],[4623,47075],[4653,41522],[4684,61731],[4714,57828],[4745,47133],[4776,37919],[4804,37705],[4835,47064],[4865,38596],[4896,31716],[4926,20086],[4957,23648],[4988,19793],[5018,19599],[5049,20628],[5079,16433],[5110,16600],[5141,22836],[5169,23498],[5200,28033],[5230,29245],[5261,27704],[5291,30449],[5322,29275],[5353,27301],[5383,26917],[5414,34501],[5444,37867],[5475,42148],[5506,42951],[5535,62499],[5566,69651],[5596,63833],[5627,68352],[5657,60871],[5688,66180],[5719,59108],[5749,65621],[5780,72330],[5810,97504],[5841,92653],[5872,104744],[5900,84646],[5931,82338],[5961,94275],[5992,104028],[6022,108386],[6053,117829],[6084,108791],[6114,114404],[6145,108303],[6175,90831],[6206,88424],[6237,84120],[6265,65867],[6296,66694],[6326,75782],[6357,73755],[6387,60136],[6418,64721],[6434,63024]];
+/**
+ * LO SCENARIO DI RIFERIMENTO È IL PEGGIORE.
+ * Tutti i numeri della pagina — quanti bitcoin servono, il primo prelievo,
+ * il confronto fra paesi — escono dalla linea di SUPPORTO, il 5° percentile:
+ * il fondo del corridoio. Se il prezzo farà meglio ti troverai con più di
+ * quello che ti serve, che è l'errore giusto da fare.
+ */
+const RIFERIMENTO = 0;   // indice in SCENARI: 0 supporto · 1 centro · 2 resistenza
+
 const giorniDaGenesi = (data = new Date()) => (data.getTime() - GENESI) / 86400000;
 
 /** La retta della regressione, in dollari. */
@@ -678,14 +687,15 @@ function render() {
   }
 
   const [SUP, CEN, RES] = SCENARI;
-  const rCentro = fabbisogno(base, lineaDi(base, CEN));
+  const RIF = SCENARI[RIFERIMENTO];
+  const rCentro = fabbisogno(base, lineaDi(base, RIF));
   const rBasso = fabbisogno(base, lineaDi(base, SUP));
   const rAlto = fabbisogno(base, lineaDi(base, RES));
   const cambio = base.cambioUsd || 1;
   const annoInizio = NOW_YEAR + rCentro.attesa;
 
   // — Il numero
-  const pa = pianoDiAccumulo(base, lineaDi(base, CEN), stack);
+  const pa = pianoDiAccumulo(base, lineaDi(base, RIF), stack);
   const testa = `
     <div class="verdetto">
       <p class="occhiello">Devi mettere da parte</p>
@@ -700,7 +710,7 @@ function render() {
         ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
            <p class="sotto">i tuoi ${fmtBTC(stack)} BTC superano l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
         : `<p class="cifra">${c.sym} ${fmt(pa.mensile)}<span class="unita">al mese</span></p>
-           <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}</p>`}
+           <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}<br /><span class="prudente">sul fondo del corridoio: se il prezzo farà meglio, ti avanzeranno</span></p>`}
     </div>`;
 
   // — Dove sta il prezzo, adesso
@@ -754,7 +764,7 @@ function render() {
   const scenariBox = `
     <section class="blocco">
       <h2>Le tre linee del corridoio</h2>
-      <p class="intro">La legge di potenza non dà un prezzo: dà una fascia. Questi sono i suoi tre bordi, presi dai residui della regressione — non sono ipotesi scelte a mano.</p>
+      <p class="intro">La legge di potenza non dà un prezzo: dà una fascia. Questi sono i suoi tre bordi, presi dai residui della regressione. <b>Tutti i numeri della pagina vengono dal primo</b>, il fondo del corridoio: è il caso peggiore, e se il prezzo farà meglio ti troverai con più di quello che ti serve.</p>
       <div class="scenari">${carte}</div>
     </section>`;
 
@@ -784,7 +794,7 @@ function render() {
     const q = { ...base, paese: n, nettoAnnuo: base.nettoAnnuo * fattore,
                 prezzoOggi: pz, costoMedio: base.costoMedio * fattore,
                 cambioUsd: prezziLive.usd ? pz / prezziLive.usd : null };
-    return { n, btc: fabbisogno(q, lineaDi(q, CEN)).btcNecessari, et: FISCO[n].etichetta };
+    return { n, btc: fabbisogno(q, lineaDi(q, RIF)).btcNecessari, et: FISCO[n].etichetta };
   }).filter(Boolean).sort((a, b) => a.btc - b.btc);
   const maxBtc = Math.max(...confronto.map(x => x.btc));
 
@@ -811,6 +821,7 @@ function render() {
     <section class="blocco piede">
       <h2>Che cosa ho assunto</h2>
       <ul class="ipotesi">
+        <li><b>Il caso peggiore</b> — tutti i conti usano la linea di <b>supporto</b>, il 5° percentile: nella storia di Bitcoin il prezzo è stato più in basso solo cinque giorni su cento. Sulla mediana servirebbero ${fmtBTC(fabbisogno(base, lineaDi(base, CEN)).btcNecessari)} BTC invece di ${fmtBTC(rCentro.btcNecessari)}.</li>
         <li><b>Un solo modello di prezzo</b> — la legge di potenza, coi parametri rifatti il ${PL_DATA_FIT} su ${fmt(PL_PUNTI)} giorni di storia: esponente ${String(PL_N).replace(".", ",")}, R² ${String(PL_R2).replace(".", ",")}. Nessun tasso di crescita scelto a mano.</li>
         <li><b>La crescita rallenta</b> — vale n/t, per costruzione: ${fmtPct(crescitaIstantanea(d0))} adesso, ${fmtPct(crescitaIstantanea(d0 + 10 * 365.25))} fra dieci anni, ${fmtPct(crescitaIstantanea(d0 + 30 * 365.25))} fra trenta.</li>
         <li><b>Decumulo programmato</b> — ${rCentro.anni} prelievi dai ${base.etaInizio} ai ${ETA_MAX} anni. Alla fine non resta niente: è voluto, non è una rendita perpetua.</li>

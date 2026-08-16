@@ -361,6 +361,7 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   margin: .5rem 0 0;
 }
 .verdetto .sotto b { color: var(--keep); }
+.prudente { color: var(--muted); font-style: italic; }
 
 .blocco { padding: 2.75rem 0; border-bottom: 1px solid var(--line); }
 .blocco:last-child { border-bottom: 0; }
