@@ -6,7 +6,7 @@
 <title>Decumulo BTC PowerLaw — quanto investire ogni mese</title>
 <meta name="description" content="Quanti Bitcoin ti servono oggi per incassare un importo netto ogni anno, dall'età che scegli fino ai cento. Decumulo programmato con la legge di potenza di Santostasi e la fiscalità reale di sei paesi europei." />
 <meta name="color-scheme" content="dark" />
-<link rel="stylesheet" href="style.css?v=20260816r" />
+<link rel="stylesheet" href="style.css?v=20260816t" />
 </head>
 <body>
 
@@ -19,31 +19,25 @@
 
 <div class="schermata">
 
-<div id="grafico" class="grafico-testa"></div>
+<form id="planner" class="barra-comandi" novalidate>
+    <p class="frase">Ho <input id="eta" class="inline num corto" type="number" min="18" max="95" value="35" aria-label="Età attuale" /> anni
+      in <select id="paese" aria-label="Paese di residenza fiscale"></select></p>
+    <span class="sep">·</span>
+    <p class="frase">mi servono
+      <span class="con-valuta"><input id="netto" class="inline num" type="number" min="0" step="500" value="10000" aria-label="Importo netto annuo" /><span class="sym">€</span></span>
+      netti l'anno dai <input id="etaInizio" class="inline num corto" type="number" min="18" max="99" value="50" aria-label="Età da cui iniziare a prelevare" /> anni</p>
+    <span class="stato-prezzo">
+      <span class="con-valuta"><input id="prezzoOggi" class="inline num" type="number" min="100" step="100" aria-label="Prezzo di Bitcoin" /><span class="sym">€</span></span>
+      <button type="button" id="badgePrezzo" class="badge" title="Rileggi il prezzo da CoinGecko">—</button>
+      <span class="regime-inline"><b id="paeseNome">Italia</b>: <b id="fiscoEtichetta" class="t">—</b></span>
+    </span>
+  </form>
 
-<form id="planner" class="scheda" novalidate>
+  <div id="grafico" class="grafico-testa"></div>
 
-  <p class="frase">
-    Ho <input id="eta" class="inline num corto" type="number" min="18" max="95" value="35" aria-label="Età attuale" /> anni
-    e vivo in <select id="paese" aria-label="Paese di residenza fiscale"></select>.
-  </p>
+  </div>
 
-  <p class="frase">
-    Mi servono
-    <span class="con-valuta"><input id="netto" class="inline num" type="number" min="0" step="500" value="10000" aria-label="Importo netto annuo" /><span class="sym">€</span></span>
-    netti ogni anno, dai
-    <input id="etaInizio" class="inline num corto" type="number" min="18" max="99" value="50" aria-label="Età da cui iniziare a prelevare" /> anni
-    fino ai 100.
-  </p>
-
-  <p class="stato-prezzo">
-    Bitcoin sta a
-    <span class="con-valuta"><input id="prezzoOggi" class="inline num" type="number" min="100" step="100" aria-label="Prezzo di Bitcoin" /><span class="sym">€</span></span>
-    <button type="button" id="badgePrezzo" class="badge" title="Rileggi il prezzo da CoinGecko">—</button>
-    <span class="regime-inline">In <b id="paeseNome">Italia</b>: <b id="fiscoEtichetta" class="t">—</b></span>
-  </p>
-
-  <details class="cassetto">
+  <details class="cassetto cassetto-stack">
     <summary>Il Bitcoin che hai già <span class="sunto" id="suntoStack">niente</span></summary>
     <div class="griglia">
       <div class="campo">
@@ -54,12 +48,12 @@
       <div class="campo">
         <label for="investito">Quanto hai investito in tutto (<span class="sym">€</span>)</label>
         <input id="investito" type="number" min="0" step="100" placeholder="0" />
-        <small>La somma di tutti i tuoi acquisti. Il tuo exchange la chiama «totale investito» o «costo». Se scrivi il prezzo medio qui sotto, questo si riempie da solo.</small>
+        <small>La somma di tutti i tuoi acquisti. Il tuo exchange la chiama «totale investito» o «costo».</small>
       </div>
       <div class="campo">
         <label for="costoMedio">Prezzo medio di carico (<span class="sym">€</span>)</label>
         <input id="costoMedio" type="number" min="0" step="100" value="0" />
-        <small id="notaCosto">Scrivine due e il terzo si compila da solo: la spesa totale è il prezzo medio moltiplicato per i bitcoin che hai.</small>
+        <small id="notaCosto">Scrivine due qualunque e il terzo si compila da solo.</small>
       </div>
     </div>
     <div class="campo" id="rigaOltreAnno">
@@ -70,13 +64,6 @@
       <small id="notaOltreAnno">—</small>
     </div>
   </details>
-
-
-</form>
-
-<div id="verdetto"></div>
-
-</div>
 
 <div id="risultati" class="risultati"></div>
 
@@ -108,6 +95,6 @@
   <p class="cod">Codice aperto — <a href="https://github.com/castelsim/retire-in-bitcoin">github.com/castelsim/retire-in-bitcoin</a></p>
 </footer>
 
-<script src="script.js?v=20260816r"></script>
+<script src="script.js?v=20260816t"></script>
 </body>
 </html>

@@ -73,15 +73,46 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
 
 /* ---------- La prima schermata: grafico e comandi affiancati ----------
    Tutto quello che serve per leggere il risultato sta sopra la piega. */
-.schermata {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(17rem, .85fr);
-  grid-template-areas: "grafico grafico" "comandi verdetto";
-  gap: 1.1rem 1.25rem;
-  align-items: start;
-  margin-bottom: 2.5rem;
+.schermata { position: relative; margin-bottom: 1.5rem; }
+
+/* I comandi in una riga sola: si leggono come una frase, non come un modulo. */
+.barra-comandi {
+  display: flex;
+  align-items: center;
+  gap: .35rem 1.1rem;
+  flex-wrap: wrap;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: .5rem 1rem;
+  margin-bottom: .9rem;
 }
-.grafico-testa { grid-area: grafico; margin: 0; }
+.barra-comandi .frase { margin: 0; font-size: 1.02rem; line-height: 1.8; }
+.barra-comandi .sep { color: var(--faint); }
+.barra-comandi .stato-prezzo {
+  margin-left: auto;
+  border: 0;
+  padding: 0;
+  gap: .45rem;
+  font-size: .72rem;
+}
+.barra-comandi .regime-inline { flex-basis: auto; }
+
+/* Il risultato galleggia sul grafico, in basso a destra: lì il grafico è vuoto. */
+#verdetto {
+  position: absolute;
+  right: 1.5%;
+  bottom: 22%;
+  max-width: 19rem;
+  z-index: 2;
+}
+#verdetto .verdetto {
+  background: rgba(10, 16, 28, .86);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 28px rgba(0,0,0,.35);
+}
+.cassetto-stack { margin-bottom: 2.5rem; }
+.grafico-testa { position: relative; margin: 0; }
 .schermata > form { grid-area: comandi; }
 #verdetto { grid-area: verdetto; align-self: start; }
 
@@ -632,11 +663,11 @@ footer a {
 }
 
 /* Un dito è largo più di 44 px: dove si tocca, i bersagli crescono. */
-@media (max-width: 52rem) {
-  .schermata {
-    grid-template-columns: 1fr;
-    grid-template-areas: "grafico" "comandi" "verdetto";
-  }
+@media (max-width: 62rem) {
+  /* Sul piccolo il riquadro non galleggia più: coprirebbe il grafico. */
+  #verdetto { position: static; max-width: none; margin-top: .9rem; }
+  #verdetto .verdetto { background: var(--ink-2); backdrop-filter: none; box-shadow: none; }
+  .barra-comandi .stato-prezzo { margin-left: 0; flex-basis: 100%; }
 }
 
 @media (max-width: 40rem), (pointer: coarse) {

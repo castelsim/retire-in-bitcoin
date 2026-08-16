@@ -426,7 +426,7 @@ const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
 const $prezzo = $("prezzoOggi"), $costo = $("costoMedio"), $stack = $("stack"), $investito = $("investito");
 const $oltreAnno = $("oltreUnAnno");
-const $out = $("risultati"), $grafico = $("grafico"), $verdetto = $("verdetto");
+const $out = $("risultati"), $grafico = $("grafico");
 
 Object.keys(PAESI).forEach(n => {
   const o = document.createElement("option");
@@ -585,7 +585,7 @@ const barra = f => `<div class="bar"><span style="width:${clamp(f * 100, 0, 100)
 // dipende dal solo colore.
 // ------------------------------------------------------------
 function grafico(base, cambio) {
-  const W = 980, H = 320, ML = 62, MR = 16, MT = 18, MB = 32;
+  const W = 1100, H = 400, ML = 64, MR = 18, MT = 18, MB = 34;
   const annoFine = NOW_YEAR + (ETA_MAX - base.eta);
   const annoDa = 2011;
   const px = a => ML + (a - annoDa) / (annoFine - annoDa) * (W - ML - MR);
@@ -912,8 +912,7 @@ function render() {
       </p>
     </section>`;
 
-  $grafico.innerHTML = grafico(base, cambio);
-  $verdetto.innerHTML = testa;
+  $grafico.innerHTML = grafico(base, cambio) + `<div id="verdetto">${testa}</div>`;
   $out.innerHTML = accumuloBox + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
 }
 
