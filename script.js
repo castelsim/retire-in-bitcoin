@@ -625,7 +625,7 @@ function grafico(base, cambio) {
           <polyline points="${cen.join(" ")}" class="g-centro" />
           <polyline points="${st.join(" ")}" class="g-storico" />
           <line x1="${inizioX.toFixed(1)}" y1="${MT}" x2="${inizioX.toFixed(1)}" y2="${H - MB}" class="g-inizio" />
-          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 12}" class="g-nota-inizio">vendi da qui (${base.etaInizio} anni) ⇄</text>
+          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 12}" class="g-nota-inizio">vendi dal ${NOW_YEAR + (base.etaInizio - base.eta)} · ${base.etaInizio} anni ⇄</text>
           <rect class="g-presa" x="${(inizioX - 11).toFixed(1)}" y="${MT}" width="22" height="${H - MT - MB}" />
           <g class="g-maniglia" transform="translate(${inizioX.toFixed(1)},${H - MB})">
             <circle r="7" /><path d="M-3.5 -3 L-6 0 L-3.5 3 M3.5 -3 L6 0 L3.5 3" />
