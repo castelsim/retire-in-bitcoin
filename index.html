@@ -3,21 +3,22 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Pensione in Bitcoin — quanti BTC servono davvero, tasse comprese</title>
+<title>Integrazione in Bitcoin — quanti BTC ti servono oggi</title>
 <meta name="description" content="Calcolatore europeo: quanti Bitcoin servono per smettere di lavorare, con la fiscalità reale di Italia, Germania, Francia, Spagna, Portogallo e Polonia. Il capitale eroga il netto, non il lordo." />
 <meta name="color-scheme" content="dark" />
-<link rel="stylesheet" href="style.css?v=20260816e" />
+<link rel="stylesheet" href="style.css?v=20260816g" />
 </head>
 <body>
 
 <header class="testata">
   <p class="occhiello">Calcolatore europeo · aggiornato ad agosto 2026</p>
-  <h1>Quanti Bitcoin servono<br />per smettere di lavorare</h1>
+  <h1>Quanti Bitcoin ti servono oggi<br />per un'integrazione annuale</h1>
   <p class="tesi">
-    Ogni calcolatore ti dà un capitale <em>lordo</em>. Ma tu vivi col netto, e su una vendita
-    di Bitcoin l'Italia prende il <b class="t">33%</b> della plusvalenza mentre la Germania,
-    oltre l'anno di detenzione, non prende <b class="k">niente</b>.
-    Lo stesso obiettivo costa numeri diversi a seconda di dove vivi. Questo lo calcola.
+    Non «quando posso smettere di lavorare»: <em>di quanto ho bisogno ogni anno, e da quando</em>.
+    Il calcolo è un decumulo programmato — vendi un po' di Bitcoin ogni anno, fino ai cento —
+    e tiene dentro il fisco del tuo paese, che sul netto pesa: in Italia si prende il
+    <b class="t">33%</b> della plusvalenza, in Germania oltre l'anno di detenzione
+    <b class="k">niente</b>.
   </p>
 </header>
 
@@ -26,29 +27,23 @@
 <form id="planner" class="scheda" novalidate>
 
   <p class="frase">
-    Vivo in
-    <select id="paese" aria-label="Paese di residenza fiscale"></select>,
-    un anno mi costa
-    <span class="con-valuta"><input id="spesa" class="inline num" type="number" min="0" step="500" value="18000" aria-label="Spesa netta annua" /><span class="sym">€</span></span>
-    netti e li userò
-    <select id="frequenza" aria-label="Ogni quanto preleverai">
-      <option value="1">tutti gli anni</option>
-      <option value="0.5" selected>un anno su due</option>
-      <option value="0.33">un anno su tre</option>
-    </select>.
+    Ho <input id="eta" class="inline num corto" type="number" min="18" max="95" value="35" aria-label="Eta attuale" /> anni
+    e vivo in <select id="paese" aria-label="Paese di residenza fiscale"></select>.
   </p>
 
   <p class="frase">
-    Ho <input id="eta" class="inline num corto" type="number" min="18" max="80" value="40" aria-label="Età attuale" /> anni
-    e voglio smettere nel
-    <input id="annoPensione" class="inline num" type="number" min="2026" max="2100" value="2041" aria-label="Anno in cui smetti di lavorare" />.
+    Mi servono
+    <span class="con-valuta"><input id="netto" class="inline num" type="number" min="0" step="500" value="10000" aria-label="Importo netto annuo" /><span class="sym">EUR</span></span>
+    netti ogni anno, dai
+    <input id="etaInizio" class="inline num corto" type="number" min="18" max="99" value="50" aria-label="Eta da cui iniziare a prelevare" /> anni
+    fino ai 100.
   </p>
 
   <p class="stato-prezzo">
     Bitcoin sta a
-    <span class="con-valuta"><input id="prezzoOggi" class="inline num" type="number" min="100" step="100" aria-label="Prezzo di Bitcoin" /><span class="sym">€</span></span>
-    <button type="button" id="badgePrezzo" class="badge" title="Rileggi il prezzo da CoinGecko">—</button>
-    <span class="regime-inline">In <b id="paeseNome">Italia</b>: <b id="fiscoEtichetta" class="t">—</b></span>
+    <span class="con-valuta"><input id="prezzoOggi" class="inline num" type="number" min="100" step="100" aria-label="Prezzo di Bitcoin" /><span class="sym">EUR</span></span>
+    <button type="button" id="badgePrezzo" class="badge" title="Rileggi il prezzo da CoinGecko">-</button>
+    <span class="regime-inline">In <b id="paeseNome">Italia</b>: <b id="fiscoEtichetta" class="t">-</b></span>
   </p>
 
   <details class="cassetto">
@@ -74,49 +69,24 @@
       <input type="checkbox" id="oltreUnAnno" checked />
       Venderò tranche detenute da più di un anno
     </label>
-    <label class="spunta">
-      <input type="checkbox" id="accumulaAncora" checked />
-      Continuo a comprare fino alla pensione
-    </label>
   </details>
 
   <details class="cassetto">
-    <summary>Come è costruito il calcolo <span class="sunto">annuity a due fasi</span></summary>
+    <summary>Come è costruito il calcolo <span class="sunto">legge di potenza</span></summary>
     <p class="regime-nota" id="fiscoNota">—</p>
+    <p class="spiega">
+      Il prezzo futuro esce da un solo modello: la <b>legge di potenza</b> di Giovanni
+      Santostasi, prezzo = 10<sup>−16,239</sup> × t<sup>5,611</sup> con t in giorni dal blocco
+      genesi. I parametri sono stati rifatti il 16 agosto 2026 sui 5.843 giorni di storia di
+      Bitcoin (R² 0,9598), non copiati. Il modello non dà un prezzo ma un <b>corridoio</b>: le
+      tre linee sono il 5°, il 50° e il 95° percentile degli scarti dalla retta.
+      Non c'è nient'altro — nessun tasso di crescita scelto a mano, nessun margine arbitrario.
+    </p>
     <div class="griglia">
-      <div class="campo">
-        <label for="anniFase1">Anni in cui vale lo scenario</label>
-        <input id="anniFase1" type="number" min="1" max="60" value="15" />
-        <small>Dopo, il rendimento scende al valore qui accanto. Bitcoin non può rendere il 13% reale a novant'anni.</small>
-      </div>
-      <div class="campo">
-        <label for="rFase2">Rendimento reale dopo (%)</label>
-        <input id="rFase2" type="number" step="0.5" min="-5" max="15" value="2" />
-      </div>
-      <div class="campo">
-        <label for="margine">Margine di sicurezza</label>
-        <select id="margine">
-          <option value="0">nessuno</option>
-          <option value="0.1" selected>+10%</option>
-          <option value="0.2">+20%</option>
-          <option value="0.3">+30%</option>
-        </select>
-      </div>
-      <div class="campo">
-        <label for="quotaMax">Tetto: quota massima della ricchezza mondiale</label>
-        <select id="quotaMax">
-          <option value="0.05">5% — quanto l'oro oggi</option>
-          <option value="0.10" selected>10% — il doppio dell'oro</option>
-          <option value="0.20">20% — un quinto di tutto</option>
-          <option value="1">nessun tetto</option>
-        </select>
-        <small>La legge di potenza non satura mai da sola: senza tetto arriva a valere migliaia di volte la ricchezza del pianeta. Vale solo per lo scenario «legge di potenza».</small>
-      </div>
-
       <div class="campo">
         <label for="annoShock">Il crollo del 70% arriva dopo (anni)</label>
         <input id="annoShock" type="number" min="0" max="30" value="2" />
-        <small>Il test di tenuta lo fa cadere subito dopo che hai smesso: è il momento peggiore possibile.</small>
+        <small>La legge di potenza è una linea liscia, la realtà no. Il test di tenuta fa crollare il prezzo subito dopo che hai smesso: è il momento peggiore possibile.</small>
       </div>
     </div>
   </details>
@@ -134,8 +104,8 @@
     <li><b>Spagna</b> — base del risparmio a scaglioni: 19% fino a 6.000 €, 21% fino a 50.000, 23% fino a 200.000, 27% oltre.</li>
     <li><b>Portogallo</b> — esente oltre 365 giorni di detenzione, 28% sotto l'anno.</li>
     <li><b>Polonia</b> — 19% piatta (PIT-38), indipendente da durata e importo.</li>
-    <li><b>Scenari di crescita</b> — quattro ipotesi scelte a mano (0 / 5 / 10 / 15% annuo) più un modello, qui sotto. Nel 2026 le revisioni degli istituzionali sono state tutte al ribasso; anche lo scenario pessimista di ARK per il 2030 implicherebbe il 43% annuo. Chi usa il 20% come ipotesi base sta scommettendo, non pianificando.</li>
-    <li><b>Legge di potenza</b> — P(t) = 10<sup>−16,493</sup> × t<sup>5,688</sup>, con t in giorni dal blocco genesi del 3 gennaio 2009: una regressione su oltre 5.700 giorni con R² 0,956, non una legge di natura. Se ne usa solo la <b>pendenza</b>: il calcolo parte dal prezzo di mercato di oggi e non assume che il prezzo torni sulla curva, perché assumerlo alzerebbe la crescita di una decina di punti.</li>
+    <li><b>Legge di potenza</b> — l'unico modello di prezzo della pagina. prezzo(t) = 10<sup>−16,239</sup> × t<sup>5,611</sup>, con t in giorni dal blocco genesi del 3 gennaio 2009. Parametri <b>rifatti il 16 agosto 2026</b> sulla serie storica completa (5.843 giorni dal 18 agosto 2010, fonte blockchain.info): R² 0,9598. La letteratura su Santostasi indica esponente 5,69 ± 0,05 e R² 0,961 — la misura combacia.</li>
+    <li><b>Le tre linee</b> — Santostasi non indica un prezzo ma un corridoio. I bordi sono i percentili degli scarti dalla retta, misurati sugli stessi 5.843 giorni: 5° (supporto, ×0,44), 50° (centro, ×0,87), 95° (resistenza, ×3,57).</li>
     <li><b>Costo della vita e inflazione</b> — ISTAT, Destatis, INE, INSEE, NBP, Eurostat 2025.</li>
     <li><b>Prezzo</b> — CoinGecko, in tempo reale. Se non risponde, il campo resta vuoto: nessun valore di ripiego, perché un prezzo sbagliato falsa ogni cifra della pagina senza che si veda.</li>
   </ul>
@@ -153,6 +123,6 @@
   <p class="cod">Codice aperto — <a href="https://github.com/castelsim/retire-in-bitcoin">github.com/castelsim/retire-in-bitcoin</a></p>
 </footer>
 
-<script src="script.js?v=20260816e"></script>
+<script src="script.js?v=20260816g"></script>
 </body>
 </html>

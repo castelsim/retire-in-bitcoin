@@ -1,63 +1,69 @@
 // Collaudo del motore: `node test.cjs`
-// Estrae la parte pura di script.js (tutto quel che sta prima del DOM) e la prova.
 const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
-fs.writeFileSync(tmp, src.split('// Prezzo live')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,imposta,lordoPerNetto,fabbisognoSimulato,curvaDi,prezzoSantostasi,tettoSaturazione,crescitaIstantanea,testTenuta,capitaleAntiCrollo,primoAnnoSufficiente,fmtPct,cagrPowerLaw,prezzoPowerLaw,giorniDaGenesi,scartoDallaCurva};');
+fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_MAX,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
+
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
-const base={paese:'Italia',eta:40,annoPensione:2041,spesaAnnua:18000,frequenza:0.5,prezzoOggi:54400,
- costoMedio:0,accumulaAncora:true,oltreUnAnno:true,margine:0.1,annoShock:2,inizioAnno:true,
- cambioUsd:54400/62900,quotaMax:0.10};
-const scPL=SCENARI.find(s=>s.key==='powerlaw');
-const fab=(o,sc)=>fabbisognoSimulato(o,curvaDi(o,sc)).btcNecessari;
+const base={paese:'Italia',eta:35,etaInizio:50,nettoAnnuo:10000,prezzoOggi:54400,
+ costoMedio:0,oltreUnAnno:true,annoShock:2,cambioUsd:54400/63000};
+const [SUP,CEN,RES]=SCENARI;
+const fab=(o,sc)=>fabbisogno(o,lineaDi(o,sc)).btcNecessari;
 
 console.log('\n--- 1. IMPOSTA ---');
-ok('Italia: aliquota effettiva sotto il 33% nominale', lordoPerNetto('Italia',18000,200000,66000,true).aliquotaEff<0.33);
+ok('Italia: effettiva sotto il 33% nominale', lordoPerNetto('Italia',18000,200000,66000,true).aliquotaEff<0.33);
 ok('Germania oltre 12 mesi: zero', lordoPerNetto('Germania',18000,200000,66000,true).lordo===18000);
-ok('Portogallo oltre 365gg: zero', lordoPerNetto('Portogallo',18000,200000,66000,true).lordo===18000);
+ok('Portogallo oltre 365 giorni: zero', lordoPerNetto('Portogallo',18000,200000,66000,true).lordo===18000);
 ok('Spagna a scaglioni fra 10% e 27%', (e=>e>0.10&&e<0.27)(lordoPerNetto('Spagna',18000,200000,66000,true).aliquotaEff));
-ok('costo medio = prezzo -> nessuna imposta', lordoPerNetto('Italia',18000,100000,100000,true).lordo===18000);
 
-console.log('\n--- 2. LEGGE DI POTENZA (Santostasi) ---');
-const d0=giorniDaGenesi();
-ok('esponente e coefficiente riproducono ~1M$ a 8 anni',
-   (v=>v>0.9e6&&v<1.5e6)(prezzoPowerLaw(d0+8*365.25)), '$'+Math.round(prezzoPowerLaw(d0+8*365.25)/1e6*10)/10+'M');
-ok('e ~10M$ a 20 anni', (v=>v>8e6&&v<14e6)(prezzoPowerLaw(d0+20*365.25)));
-ok('la crescita DECADE col tempo (n/t)', crescitaIstantanea(d0)>crescitaIstantanea(d0+30*365.25));
-ok('a 30 anni la crescita e circa 12%', Math.abs(crescitaIstantanea(d0+30*365.25)-0.119)<0.02);
-ok('il tetto cresce ma resta finito', tettoSaturazione(60)<1e8 && tettoSaturazione(60)>tettoSaturazione(10));
-const senza=prezzoSantostasi(54400,60,null), con=prezzoSantostasi(54400,60,54400/62900);
-ok('il tetto morde sul lungo periodo', con<senza, 'con '+Math.round(con/1e6)+'M contro '+Math.round(senza/1e6)+'M');
-ok('nel breve il tetto non morde', prezzoSantostasi(54400,3,54400/62900)===prezzoSantostasi(54400,3,null));
+console.log('\n--- 2. LEGGE DI POTENZA E CORRIDOIO ---');
+const d=giorniDaGenesi();
+ok('esponente vicino alla letteratura', Math.abs(PL_N-5.69)<0.15, PL_N);
+ok('la crescita decade col tempo', crescitaIstantanea(d)>crescitaIstantanea(d+30*365.25));
+ok('le tre linee sono ordinate', lineaCorridoio(d,SUP.perc)<lineaCorridoio(d,CEN.perc)&&lineaCorridoio(d,CEN.perc)<lineaCorridoio(d,RES.perc));
+ok('oggi siamo nella meta bassa del corridoio', posizioneNelCorridoio(63000).frazione<0.5);
 
-console.log('\n--- 3. IL MOTORE SIMULATO ---');
-const pl=fab(base,scPL), fermo=fab({...base,g:0},null), base10=fab({...base,g:0.10},null);
-console.log('     prezzo fermo '+fermo.toFixed(4)+' · base 10% '+base10.toFixed(4)+' · Santostasi '+pl.toFixed(4));
-ok('piu crescita ipotizzi, meno BTC servono', fermo>base10 && base10>pl);
-ok('la simulazione col tetto chiede piu della simulazione senza',
-   fab(base,scPL) > fab({...base,quotaMax:1},scPL));
-ok('spendere il doppio richiede circa il doppio',
-   Math.abs(fab({...base,spesaAnnua:36000},scPL)/pl - 2)<0.15);
-ok('prelevare 1 anno su 3 costa circa un terzo di prelevare ogni anno',
-   Math.abs(fab({...base,frequenza:0.33},scPL)/fab({...base,frequenza:1},scPL)-0.33)<0.05);
-ok('Italia costa piu della Germania', fab(base,scPL)>fab({...base,paese:'Germania'},scPL));
-ok('il margine di sicurezza si vede', fab({...base,margine:0.3},scPL)>fab({...base,margine:0},scPL));
+console.log('\n--- 3. IL DECUMULO PROGRAMMATO ---');
+const r=fabbisogno(base,lineaDi(base,CEN));
+console.log('     servono oggi '+r.btcNecessari.toFixed(6)+' BTC · '+r.righe.length+' prelievi dai '+base.etaInizio+' ai '+ETA_MAX);
+ok('la tabella copre esattamente gli anni dal via ai 100', r.righe.length===ETA_MAX-base.etaInizio, r.righe.length+' righe');
+ok('la prima riga e all eta di inizio', r.righe[0].eta===base.etaInizio);
+ok('l ultima riga e a 99 anni compiuti', r.righe[r.righe.length-1].eta===ETA_MAX-1);
+ok('il patrimonio si esaurisce alla fine (decumulo, non rendita)', r.righe[r.righe.length-1].residui<r.btcNecessari*0.02,
+   'residui finali '+r.righe[r.righe.length-1].residui.toFixed(8)+' BTC');
+ok('i BTC residui scendono sempre', r.righe.every((x,i,a)=>i===0||x.residui<=a[i-1].residui));
+ok('il netto cresce con l inflazione', r.righe[10].netto>r.righe[0].netto);
+ok('il netto del primo anno e il richiesto rivalutato',
+   Math.abs(r.righe[0].netto - 10000*Math.pow(1.02,15))<1, Math.round(r.righe[0].netto)+' EUR');
+ok('lordo >= netto sempre', r.righe.every(x=>x.lordo>=x.netto-0.01));
+ok('lordo = netto + tasse', r.righe.every(x=>Math.abs(x.lordo-x.netto-x.tasse)<0.01));
+ok('BTC venduti = lordo / prezzo', r.righe.every(x=>Math.abs(x.venduti-x.lordo/x.prezzo)<1e-9));
 
-console.log('\n--- 4. TEST DI TENUTA ---');
-const c=curvaDi({...base,g:0.10},null);
-ok('un capitale minuscolo non regge', !testTenuta({...base,g:0.10},0.001,c).regge);
-ok('un capitale enorme regge', testTenuta({...base,g:0.10},50,c).regge);
-const r10=fab({...base,g:0.10},null);
-const serve=capitaleAntiCrollo({...base,g:0.10},r10,c);
-ok('capitaleAntiCrollo restituisce piu del fabbisogno', serve===null||serve>=r10);
+console.log('\n--- 4. COME REAGISCE ---');
+ok('chiedere il doppio costa circa il doppio', Math.abs(fab({...base,nettoAnnuo:20000},CEN)/r.btcNecessari-2)<0.1);
+ok('cominciare piu tardi costa meno', fab({...base,etaInizio:65},CEN)<r.btcNecessari);
+ok('cominciare subito costa molto di piu', fab({...base,etaInizio:35},CEN)>r.btcNecessari*3);
+ok('essere piu giovani (piu attesa) costa meno', fab({...base,eta:25},CEN)<r.btcNecessari);
+ok('la linea alta chiede meno della bassa', fab(base,RES)<fab(base,CEN) && fab(base,CEN)<fab(base,SUP));
+ok('Italia costa piu della Germania', r.btcNecessari>fab({...base,paese:'Germania'},CEN));
+ok('un costo medio alto abbassa il fabbisogno', fab({...base,costoMedio:300000},CEN)<r.btcNecessari);
+ok('il bollo erode anche negli anni di attesa',
+   fab({...base,paese:'Italia'},CEN) > fab({...base,paese:'Polonia'},CEN)*0.9);
 
-console.log('\n--- 5. CONFRONTO FRA I SEI PAESI ---');
-const tab=Object.keys(PAESI).map(n=>({n, v:fab({...base,paese:n},scPL)})).sort((a,b)=>a.v-b.v);
-tab.forEach(x=>console.log('     '+x.n.padEnd(11)+x.v.toFixed(4)+' BTC'));
-ok('nessun paese e fuori scala (max/min sotto 2)', tab[tab.length-1].v/tab[0].v<2,
-   'rapporto '+(tab[tab.length-1].v/tab[0].v).toFixed(2));
+console.log('\n--- 5. TEST DI TENUTA ---');
+const L=lineaDi(base,CEN);
+ok('capitale minuscolo: non regge', !testTenuta(base,1e-8,L).regge);
+ok('capitale enorme: regge', testTenuta(base,50,L).regge);
+const serve=capitaleAntiCrollo(base,r.btcNecessari,L);
+ok('per reggere un crollo serve piu del minimo', serve===null||serve>r.btcNecessari,
+   serve?('+'+((serve/r.btcNecessari-1)*100).toFixed(0)+'%'):'oltre 8x');
+
+console.log('\n--- 6. I SEI PAESI ---');
+const tab=Object.keys(PAESI).map(n=>({n,v:fab({...base,paese:n},CEN)})).sort((a,b)=>a.v-b.v);
+tab.forEach(x=>console.log('     '+x.n.padEnd(11)+x.v.toFixed(6)+' BTC'));
+ok('nessuno fuori scala', tab[5].v/tab[0].v<2, 'rapporto '+(tab[5].v/tab[0].v).toFixed(2));
 ok('i due esenti sono i piu economici', ['Portogallo','Germania'].includes(tab[0].n)&&['Portogallo','Germania'].includes(tab[1].n));
 
 console.log(ko===0?'\nTUTTI I CONTROLLI PASSATI\n':'\n'+ko+' CONTROLLI FALLITI\n');

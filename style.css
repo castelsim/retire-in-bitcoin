@@ -353,6 +353,84 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 .legenda .k { color: var(--keep); }
 .legenda .t { color: var(--tax); }
 
+/* La timeline del decumulo: cinquant'anni di righe, leggibili anche sul telefono */
+.tabellone {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 30rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 1rem;
+}
+.timeline { font-size: .82rem; margin: 0; }
+.timeline th {
+  position: sticky;
+  top: 0;
+  background: var(--ink-2);
+  padding: .7rem .8rem;
+  white-space: nowrap;
+  z-index: 1;
+}
+.timeline td { padding: .5rem .8rem; white-space: nowrap; border-bottom: 1px solid var(--ink-3); }
+.timeline tbody tr:hover { background: rgba(255,255,255,.025); }
+.timeline .anno { color: var(--faint); }
+.timeline .k { color: var(--keep); }
+.timeline .t { color: var(--tax); }
+.timeline .residui { color: var(--text); font-weight: 600; }
+.timeline td.num, .timeline th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Il corridoio: dove sta il prezzo fra il fondo e il tetto della fascia */
+.corridoio { margin: 1.5rem 0 0; }
+.corr-scala {
+  position: relative;
+  height: 12px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--zero) 0%, var(--keep) 50%, var(--hope) 100%);
+  opacity: .85;
+}
+.corr-ora {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 30px;
+  margin-left: -1.5px;
+  background: var(--text);
+  transform: translateY(-50%);
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px var(--ink);
+}
+.corr-etichette {
+  position: relative;
+  height: 3.2rem;
+  margin-top: 1.1rem;
+  font-family: var(--mono);
+  font-size: .74rem;
+  color: var(--faint);
+}
+.corr-etichette span { position: absolute; top: 0; white-space: nowrap; }
+.corr-etichette .lo { left: 0; }
+.corr-etichette .mid { transform: translateX(-50%); text-align: center; }
+.corr-etichette .hi { right: 0; text-align: right; }
+.corr-tacca {
+  position: absolute;
+  top: -3px;
+  width: 1px;
+  height: 18px;
+  margin-left: -0.5px;
+  background: var(--ink);
+  opacity: .55;
+}
+.corr-etichette b { display: block; color: var(--text); font-size: 1.05rem; margin-top: .2rem; }
+.corr-etichette .mid b { color: var(--keep); }
+
+.spiega {
+  font-size: .88rem;
+  color: var(--muted);
+  max-width: 46rem;
+  margin: 0 0 1.2rem;
+}
+.spiega b { color: var(--text); }
+
 /* tabella paesi */
 .tabella { width: 100%; border-collapse: collapse; font-size: .92rem; }
 .tabella th {
@@ -479,6 +557,10 @@ footer a {
 
 /* Un dito è largo più di 44 px: dove si tocca, i bersagli crescono. */
 @media (max-width: 40rem), (pointer: coarse) {
+  .corr-etichette { height: auto; display: grid; gap: .5rem; }
+  .corr-etichette span { position: static; transform: none; text-align: left !important; left: auto !important; }
+  .corr-etichette b { display: inline; margin-left: .4rem; }
+  .tabellone { max-height: 24rem; }
   .testata { padding-top: 2.5rem; }
   .scheda { padding: 1.25rem; }
   .griglia { grid-template-columns: 1fr; }
