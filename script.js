@@ -290,19 +290,25 @@ function prezzoPerPaese(nome) {
 
 function applicaPrezzoLive() {
   const p = prezzoPerPaese($paese.value);
-  if (p) $prezzo.value = Math.round(p);
+  if (p) {
+    $prezzo.value = Math.round(p);
+    if (typeof adattaTutti === "function") adattaTutti();
+  }
 }
 
 // ------------------------------------------------------------
-// DOM
+// INTERFACCIA
+// Il modulo è una frase da completare e il risultato si aggiorna
+// mentre scrivi: niente pulsante fra la domanda e la risposta.
 // ------------------------------------------------------------
 const $ = id => document.getElementById(id);
-const $paese = $("paese"), $eta = $("eta"), $etaVal = $("etaVal"), $anno = $("annoPensione");
-const $stile = $("stile"), $spesaCustom = $("spesaCustom"), $rigaCustom = $("rigaCustom");
-const $prezzo = $("prezzoOggi"), $costo = $("costoMedio"), $stack = $("stack");
+const $paese = $("paese"), $eta = $("eta"), $anno = $("annoPensione"), $spesa = $("spesa");
+const $prezzo = $("prezzoOggi"), $costo = $("costoMedio"), $stack = $("stack"), $investito = $("investito");
 const $freq = $("frequenza"), $oltreAnno = $("oltreUnAnno");
 const $margine = $("margine"), $fase1 = $("anniFase1"), $rFase2 = $("rFase2"), $shock = $("annoShock");
-const $form = $("planner"), $out = $("risultati");
+const $out = $("risultati");
+
+let spesaToccata = false;
 
 Object.keys(PAESI).forEach(n => {
   const o = document.createElement("option");
@@ -311,31 +317,51 @@ Object.keys(PAESI).forEach(n => {
 });
 $paese.value = "Italia";
 
+/** Gli input e i menu dentro la frase si stringono sul testo che contengono,
+ *  altrimenti un menu con «Portogallo» lascia un buco anche quando dice «Italia». */
+const righello = document.createElement("span");
+righello.style.cssText = "position:absolute;visibility:hidden;white-space:pre;top:-9999px";
+document.body.appendChild(righello);
+
+function adattaLarghezza(el) {
+  const s = getComputedStyle(el);
+  righello.style.font = s.font || `${s.fontWeight} ${s.fontSize}/${s.lineHeight} ${s.fontFamily}`;
+  righello.style.letterSpacing = s.letterSpacing;
+  const testo = el.tagName === "SELECT"
+    ? (el.selectedOptions[0] ? el.selectedOptions[0].textContent : "")
+    : String(el.value || el.placeholder || "");
+  righello.textContent = testo || "0";
+  // offsetWidth misura solo il testo: i padding e i bordi dell'elemento vanno aggiunti,
+  // altrimenti l'ultima cifra finisce fuori dal campo.
+  const bordi = parseFloat(s.paddingLeft) + parseFloat(s.paddingRight)
+              + parseFloat(s.borderLeftWidth) + parseFloat(s.borderRightWidth);
+  const respiro = el.tagName === "SELECT" ? 4 : 3;   // il cursore che lampeggia vuole il suo spazio
+  el.style.width = Math.ceil(righello.offsetWidth + bordi + respiro) + "px";
+  // Il righello può sbagliare di qualche pixel (font sostituito, arrotondamenti):
+  // se il contenuto sborda davvero, è l'elemento stesso a dire di quanto.
+  if (el.tagName !== "SELECT" && el.scrollWidth > el.clientWidth) {
+    el.style.width = Math.ceil(el.scrollWidth + bordi + respiro) + "px";
+  }
+}
+function adattaTutti() {
+  document.querySelectorAll(".frase input.inline, .frase select, .stato-prezzo input.inline")
+    .forEach(adattaLarghezza);
+}
+
 function aggiornaValuta() {
   const c = PAESI[$paese.value];
   document.querySelectorAll(".sym").forEach(e => (e.textContent = c.sym));
-  if (!prezzoManuale) applicaPrezzoLive();
+  $("paeseNome").textContent = $paese.value;
   const f = FISCO[$paese.value];
   $("fiscoEtichetta").textContent = f.etichetta;
   $("fiscoNota").textContent = f.nota;
   $("rigaOltreAnno").classList.toggle("hidden", !f.esenteOltreAnno);
-  aggiornaStili();
-  if (document.getElementById("investito")) calcolaCostoMedio();
+  // Chi cambia paese non ha ancora detto quanto spende: proponi il costo della vita locale.
+  if (!spesaToccata) $spesa.value = c.stili.base;
+  if (!prezzoManuale) applicaPrezzoLive();
+  calcolaCostoMedio();
+  adattaTutti();
 }
-
-function aggiornaStili() {
-  const c = PAESI[$paese.value];
-  [...$stile.options].forEach(o => {
-    if (c.stili[o.value]) o.textContent = `${o.dataset.nome} — ${c.sym} ${fmt(c.stili[o.value])}/anno`;
-  });
-  $spesaCustom.placeholder = `es. ${fmt(c.stili.base)}`;
-}
-
-$eta.addEventListener("input", () => ($etaVal.textContent = $eta.value));
-$paese.addEventListener("change", aggiornaValuta);
-$stile.addEventListener("change", () => $rigaCustom.classList.toggle("hidden", $stile.value !== "custom"));
-$prezzo.addEventListener("input", () => { prezzoManuale = true; });
-$("badgePrezzo").addEventListener("click", () => caricaPrezzo(true));
 
 /** Chi ha meno di un Bitcoin ragiona in satoshi: 28392600 sono 0,283926 BTC.
  *  Nessuno che usa questo calcolatore possiede mille Bitcoin, quindi la soglia è netta. */
@@ -347,7 +373,7 @@ function stackInBTC() {
 
 /** Il costo medio non si chiede: si ricava da quanto hai speso in tutto. */
 function calcolaCostoMedio() {
-  const speso = parseFloat($("investito").value || "0");
+  const speso = parseFloat($investito.value || "0");
   const btc = stackInBTC();
   const nota = $("notaCosto");
   if (speso > 0 && btc > 0) {
@@ -362,41 +388,33 @@ function calcolaCostoMedio() {
     nota.innerHTML = `Calcolato: <b>${PAESI[$paese.value].sym} ${fmt(medio)}</b> per Bitcoin.${segno}`;
     nota.classList.add("nota-viva");
   } else {
-    nota.textContent = "Si compila da solo se riempi i due campi qui accanto. Serve per l'imposta: si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
+    nota.textContent = "Si compila da solo se riempi i due campi qui sopra. Serve per l'imposta: si paga solo sulla differenza fra prezzo di vendita e prezzo di acquisto.";
     nota.classList.remove("nota-viva");
   }
+  aggiornaSunto();
 }
 
-$("investito").addEventListener("input", calcolaCostoMedio);
-$stack.addEventListener("input", calcolaCostoMedio);
-$costo.addEventListener("input", () => {
-  // Se lo scrive a mano vince lui: smetto di sovrascriverlo.
-  $("investito").value = "";
-  calcolaCostoMedio();
-});
+/** Il cassetto chiuso dice già che cosa contiene. */
+function aggiornaSunto() {
+  const btc = stackInBTC();
+  $("suntoStack").textContent = btc > 0 ? `${fmtBTC(btc)} BTC` : "niente";
+}
 
-// ------------------------------------------------------------
-// Render
-// ------------------------------------------------------------
 function leggiInput() {
-  const c = PAESI[$paese.value];
-  const spesa = $stile.value === "custom"
-    ? parseFloat($spesaCustom.value || "0")
-    : c.stili[$stile.value];
   return {
     paese: $paese.value,
-    eta: parseInt($eta.value, 10),
+    eta: clamp(parseInt($eta.value, 10) || 40, 18, 90),
     annoPensione: clamp(parseInt($anno.value, 10) || NOW_YEAR, NOW_YEAR, 2100),
-    spesaAnnua: spesa,
+    spesaAnnua: parseFloat($spesa.value || "0"),
     frequenza: parseFloat($freq.value),
     prezzoOggi: parseFloat($prezzo.value),
     costoMedio: parseFloat($costo.value || "0"),
     accumulaAncora: $("accumulaAncora").checked,
     oltreUnAnno: $oltreAnno.checked,
     margine: parseFloat($margine.value),
-    anniFase1: parseInt($fase1.value, 10),
-    rFase2: parseFloat($rFase2.value) / 100,
-    annoShock: parseInt($shock.value, 10),
+    anniFase1: parseInt($fase1.value, 10) || 15,
+    rFase2: (parseFloat($rFase2.value) || 0) / 100,
+    annoShock: parseInt($shock.value, 10) || 0,
     inizioAnno: true,
   };
 }
@@ -406,60 +424,50 @@ function barra(frazione) {
   return `<div class="bar"><span style="width:${pct}%"></span></div>`;
 }
 
-$form.addEventListener("submit", e => {
-  e.preventDefault();
+function render() {
   const base = leggiInput();
   const c = PAESI[base.paese];
   const stack = stackInBTC();
 
   if (!Number.isFinite(base.spesaAnnua) || base.spesaAnnua <= 0) {
-    $out.innerHTML = `<p class="errore">Manca l'importo annuo. Scegli uno stile di vita o scrivi quanto ti costa un anno.</p>`;
+    $out.innerHTML = `<p class="errore">Scrivi quanto ti costa un anno di vita: senza quello non c'è niente da calcolare.</p>`;
     return;
   }
   if (!Number.isFinite(base.prezzoOggi) || base.prezzoOggi <= 0) {
-    $out.innerHTML = `<p class="errore">Manca il prezzo di Bitcoin. Scrivilo nel campo qui sopra.</p>`;
+    $out.innerHTML = `<p class="errore">Manca il prezzo di Bitcoin. Premi ↻ per rileggerlo, oppure scrivilo a mano.</p>`;
     return;
   }
 
   const rBase = calcolaFabbisogno({ ...base, g: 0.10 });
   const rFermo = calcolaFabbisogno({ ...base, g: 0.0 });
 
-  // — Il numero
   const testa = `
     <div class="verdetto">
-      <p class="occhiello">Per vivere con ${c.sym} ${fmt(base.spesaAnnua)} l'anno${base.frequenza < 1 ? ` (usati ${$freq.selectedOptions[0].textContent.toLowerCase()})` : ""},
+      <p class="occhiello">Per vivere con ${c.sym} ${fmt(base.spesaAnnua)} l'anno${base.frequenza < 1 ? `, presi ${$freq.selectedOptions[0].textContent}` : ""},
       dal ${base.annoPensione}, fino a ${ETA_MAX} anni</p>
       <p class="cifra">${fmtBTC(rBase.btcNecessari)}<span class="unita">BTC</span></p>
       <p class="sotto">nell'ipotesi base, crescita 10% l'anno · ${fmtBTC(rFermo.btcNecessari)} BTC se il prezzo non salisse mai più</p>
+      ${stack > 0 ? `<div class="cop-testa">${barra(stack / rBase.btcNecessari)}<p>hai ${fmtBTC(stack)} BTC: sei al <b>${fmtPct(stack / rBase.btcNecessari)}</b></p></div>` : ""}
     </div>`;
 
-  // — Che cosa ci toglie il fisco
   const f = FISCO[base.paese];
   const extra = rBase.lordoPensione - rBase.spesaNettaPensione;
   const fiscoBox = `
     <section class="blocco">
       <h2>Quanto devi vendere per averne ${c.sym} ${fmt(rBase.spesaNettaPensione)} in mano</h2>
-      <div class="fisco-riga">
-        <div class="fisco-quota">
-          <div class="bar bar-split">
-            <span class="q-keep" style="width:${100 * rBase.spesaNettaPensione / rBase.lordoPensione}%"></span>
-            <span class="q-tax" style="width:${100 * extra / rBase.lordoPensione}%"></span>
-          </div>
-          <p class="legenda">
-            <b class="k">${c.sym} ${fmt(rBase.spesaNettaPensione)}</b> a te ·
-            <b class="t">${c.sym} ${fmt(extra)}</b> di imposta ·
-            aliquota effettiva <b>${fmtPct(rBase.aliquotaEff)}</b>
-          </p>
-        </div>
+      <div class="bar bar-split">
+        <span class="q-keep" style="width:${100 * rBase.spesaNettaPensione / rBase.lordoPensione}%"></span>
+        <span class="q-tax" style="width:${100 * extra / rBase.lordoPensione}%"></span>
       </div>
+      <p class="legenda">
+        <b class="k">${c.sym} ${fmt(rBase.spesaNettaPensione)}</b> a te ·
+        <b class="t">${c.sym} ${fmt(extra)}</b> di imposta ·
+        aliquota effettiva <b>${fmtPct(rBase.aliquotaEff)}</b>
+      </p>
       <p class="nota">${f.nota}</p>
       <p class="nota">L'aliquota effettiva è più bassa di quella nominale: l'imposta colpisce solo la plusvalenza, cioè la parte di prezzo che eccede quanto avevi pagato (${c.sym} ${fmt(rBase.costoMedio)} di costo medio stimato alla data).</p>
     </section>`;
 
-  // — Confronto fra paesi: la tesi della pagina
-  // Confronto a parità di potere d'acquisto: la spesa dell'utente viene convertita
-  // nella valuta di ogni paese passando per il prezzo di Bitcoin, così l'unica
-  // differenza che resta fra le righe è il regime fiscale.
   const confronto = Object.keys(PAESI)
     .map(n => {
       const pz = prezzoPerPaese(n) || (PAESI[n].valuta === c.valuta ? base.prezzoOggi : null);
@@ -471,12 +479,12 @@ $form.addEventListener("submit", e => {
         prezzoOggi: pz,
         costoMedio: base.costoMedio * fattore,
       });
-      return { n, btc: r.btcNecessari, eff: r.aliquotaEff, et: FISCO[n].etichetta };
+      return { n, btc: r.btcNecessari, et: FISCO[n].etichetta };
     })
     .filter(Boolean)
     .sort((a, b) => a.btc - b.btc);
   const maxBtc = Math.max(...confronto.map(x => x.btc));
-  const righeConfronto = confronto.map(x => `
+  const righe = confronto.map(x => `
     <tr class="${x.n === base.paese ? "tuo" : ""}">
       <td class="pa">${x.n}${x.n === base.paese ? " <span class='tag'>tu</span>" : ""}</td>
       <td class="reg">${x.et}</td>
@@ -490,12 +498,11 @@ $form.addEventListener("submit", e => {
       <p class="intro">A parità di spesa, di età e di scenario, cambia solo il regime fiscale: fra il primo e l'ultimo della lista ballano <b>${fmtBTC(maxBtc - confronto[0].btc)} BTC</b>, il ${(100 * (maxBtc / confronto[0].btc - 1)).toFixed(0)}% in più. È il pezzo che i calcolatori americani non hanno.</p>
       <table class="tabella">
         <thead><tr><th>Paese</th><th>Regime</th><th class="num">BTC</th><th></th></tr></thead>
-        <tbody>${righeConfronto}</tbody>
+        <tbody>${righe}</tbody>
       </table>
       <p class="nota">Le spese sono convertite fra valute al prezzo di Bitcoin, così le righe differiscono solo per il fisco. Non è corretto per il diverso costo della vita: vivere a Lisbona costa meno che a Monaco, e questo confronto non lo dice.</p>
     </section>`;
 
-  // — Scenari
   const cards = SCENARI.map(sc => {
     const r = calcolaFabbisogno({ ...base, g: sc.g });
     const anno = primoAnnoSufficiente({ ...base, g: sc.g }, stack);
@@ -534,7 +541,6 @@ $form.addEventListener("submit", e => {
       <div class="scenari">${cards}</div>
     </section>`;
 
-  // — Ipotesi in chiaro
   const ipotesi = `
     <section class="blocco piede">
       <h2>Che cosa ho assunto</h2>
@@ -550,13 +556,42 @@ $form.addEventListener("submit", e => {
     </section>`;
 
   $out.innerHTML = testa + fiscoBox + paesiBox + scenariBox + ipotesi;
-  $out.classList.add("visibile");
-  $out.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ------------------------------------------------------------
+// Ascolto: ogni modifica ridisegna, senza aspettare un pulsante
+// ------------------------------------------------------------
+let attesa = null;
+function ridisegna() {
+  clearTimeout(attesa);
+  attesa = setTimeout(render, 120);
+}
+
+$("planner").addEventListener("submit", e => { e.preventDefault(); render(); });
+$("planner").addEventListener("input", e => {
+  if (e.target.classList.contains("inline")) adattaLarghezza(e.target);
+  ridisegna();
+});
+$("planner").addEventListener("change", e => {
+  if (e.target.tagName === "SELECT") adattaLarghezza(e.target);
+  ridisegna();
+});
+
+$paese.addEventListener("change", aggiornaValuta);
+$spesa.addEventListener("input", () => { spesaToccata = true; });
+$prezzo.addEventListener("input", () => { prezzoManuale = true; calcolaCostoMedio(); });
+$("badgePrezzo").addEventListener("click", () => caricaPrezzo(true).then(render));
+$investito.addEventListener("input", calcolaCostoMedio);
+$stack.addEventListener("input", calcolaCostoMedio);
+$costo.addEventListener("input", () => {
+  // Se lo scrive a mano vince lui: smetto di calcolarlo.
+  $investito.value = "";
+  calcolaCostoMedio();
 });
 
 // ------------------------------------------------------------
-// Avvio
+// Avvio: la pagina apre già con una risposta, non con un modulo vuoto
 // ------------------------------------------------------------
-aggiornaValuta();
-caricaPrezzo();
 $anno.value = NOW_YEAR + 15;
+aggiornaValuta();
+caricaPrezzo().then(render);

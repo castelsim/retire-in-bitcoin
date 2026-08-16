@@ -74,13 +74,112 @@ h1 {
 .tesi b.t, b.t { color: var(--tax); font-family: var(--mono); }
 .tesi b.k, b.k { color: var(--keep); font-family: var(--mono); }
 
-/* ---------- Scheda di input ---------- */
+/* ---------- Il modulo è una frase da completare ----------
+   Dodici etichette diventano due frasi con dei buchi: si legge una volta
+   sola e si capisce che cosa sta chiedendo, senza tradurre dal modulistico. */
 .scheda {
   background: var(--ink-2);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 1.75rem;
 }
+
+.frase {
+  font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+  line-height: 2.15;
+  margin: 0 0 .35rem;
+  color: var(--muted);
+}
+.frase:last-of-type { margin-bottom: 1.2rem; }
+
+.frase select,
+.frase input.inline {
+  font-family: var(--mono);
+  font-size: .92em;
+  color: var(--keep);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  border-radius: 0;
+  padding: .3rem .15rem;
+  min-height: 44px;
+  width: auto;
+  text-align: center;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+/* Niente freccetta: il menu è una parola sottolineata dentro la frase,
+   quindi non gli serve lo spazio a destra che lo staccherebbe dalla virgola. */
+.frase select { padding-left: 0; padding-right: 0; background-image: none; text-align: left; }
+.frase select:hover,
+.frase input.inline:hover { border-bottom-color: var(--keep); }
+.frase input.inline { text-align: right; cursor: text; }
+.frase input.inline.corto { width: 3ch; }
+.frase input::-webkit-outer-spin-button,
+.frase input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.frase input[type=number] { -moz-appearance: textfield; }
+
+.con-valuta { white-space: nowrap; }
+.con-valuta .sym { color: var(--keep); font-family: var(--mono); font-size: .92em; margin-left: .1em; }
+
+/* Riga di stato: il prezzo e il regime fiscale, che si leggono e non si compilano quasi mai */
+.stato-prezzo {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  font-family: var(--mono);
+  font-size: .82rem;
+  color: var(--faint);
+  border-top: 1px solid var(--line);
+  padding-top: .75rem;
+  margin: 0 0 .5rem;
+}
+.stato-prezzo input.inline {
+  font-size: .95rem;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  padding: .2rem .1rem;
+  min-height: 44px;
+  text-align: right;
+}
+.stato-prezzo .sym { color: var(--muted); }
+.regime-inline { margin-left: auto; color: var(--muted); }
+.regime-inline b { color: var(--text); }
+
+/* Cassetti: quello che ha già una risposta ragionevole resta chiuso */
+.cassetto { border-top: 1px solid var(--line); }
+.cassetto > summary {
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--text);
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  list-style: none;
+}
+.cassetto > summary::-webkit-details-marker { display: none; }
+.cassetto > summary::before {
+  content: "＋";
+  font-family: var(--mono);
+  color: var(--faint);
+  font-size: .9em;
+}
+.cassetto[open] > summary::before { content: "－"; }
+.cassetto[open] > summary { color: var(--keep); }
+.sunto {
+  font-family: var(--mono);
+  font-size: .74rem;
+  font-weight: 400;
+  color: var(--faint);
+  margin-left: auto;
+}
+.cassetto .griglia { padding: .5rem 0 1rem; }
 .griglia {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
@@ -129,8 +228,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 }
 /* Il badge dice quando il prezzo è stato letto ed è anche il modo di rileggerlo:
    l'area cliccabile arriva a 44 px senza gonfiare il testo. */
-.riga-etichetta { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
-.riga-etichetta label { margin: 0; }
 
 .badge {
   font-family: var(--mono);
@@ -169,18 +266,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   cursor: pointer;
 }
 
-.avanzate { margin-top: 1.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
-.avanzate summary {
-  cursor: pointer;
-  font-family: var(--mono);
-  font-size: .82rem;
-  color: var(--muted);
-  letter-spacing: .04em;
-  min-height: 44px;
-  display: flex;
-  align-items: center;
-}
-.avanzate .griglia { margin-top: 1rem; }
 .regime-nota {
   font-size: .86rem;
   color: var(--muted);
@@ -189,22 +274,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   margin: .5rem 0 1rem;
 }
 
-button[type="submit"] {
-  margin-top: 1.75rem;
-  width: 100%;
-  min-height: 52px;
-  font-family: var(--mono);
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: .02em;
-  color: var(--ink);
-  background: var(--keep);
-  border: 0;
-  border-radius: 9px;
-  cursor: pointer;
-  transition: filter .15s ease;
-}
-button[type="submit"]:hover { filter: brightness(1.08); }
 
 /* ---------- Risultati ---------- */
 .risultati { margin-top: 2.5rem; }
@@ -253,6 +322,9 @@ button[type="submit"]:hover { filter: brightness(1.08); }
   color: var(--faint);
   margin: 1rem 0 0;
 }
+.cop-testa { max-width: 22rem; margin: 1.5rem auto 0; }
+.cop-testa p { font-family: var(--mono); font-size: .8rem; color: var(--muted); margin: .5rem 0 0; }
+.cop-testa b { color: var(--keep); }
 
 .blocco { padding: 2.75rem 0; border-bottom: 1px solid var(--line); }
 .blocco:last-child { border-bottom: 0; }
