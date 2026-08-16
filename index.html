@@ -6,23 +6,24 @@
 <title>Integrazione in Bitcoin — quanti BTC ti servono oggi</title>
 <meta name="description" content="Quanti Bitcoin ti servono oggi per incassare un importo netto ogni anno, dall'età che scegli fino ai cento. Decumulo programmato con la legge di potenza di Santostasi e la fiscalità reale di sei paesi europei." />
 <meta name="color-scheme" content="dark" />
-<link rel="stylesheet" href="style.css?v=20260816m" />
+<link rel="stylesheet" href="style.css?v=20260816p" />
 </head>
 <body>
 
 <header class="testata">
   <p class="occhiello">Calcolatore europeo · aggiornato ad agosto 2026</p>
-  <h1>Quanti Bitcoin ti servono oggi<br />per un'integrazione annuale</h1>
+  <h1>Quanto devo investire ogni mese<br />per un'integrazione a vita</h1>
   <p class="tesi">
-    Non «quando posso smettere di lavorare»: <em>di quanto ho bisogno ogni anno, e da quando</em>.
-    Il calcolo è un decumulo programmato — vendi un po' di Bitcoin ogni anno, fino ai cento —
-    e tiene dentro il fisco del tuo paese, che sul netto pesa: in Italia si prende il
-    <b class="t">33%</b> della plusvalenza, in Germania oltre l'anno di detenzione
+    Dimmi di quanto hai bisogno ogni anno e da che età: ti dico quanto mettere da parte da oggi.
+    Il prezzo futuro viene dalla legge di potenza di Santostasi, e il conto tiene dentro il fisco
+    del tuo paese — in Italia il <b class="t">33%</b> della plusvalenza, in Germania oltre l'anno
     <b class="k">niente</b>.
   </p>
 </header>
 
 <main>
+
+<div id="grafico" class="grafico-testa"></div>
 
 <form id="planner" class="scheda" novalidate>
 
@@ -74,25 +75,6 @@
     </div>
   </details>
 
-  <details class="cassetto">
-    <summary>Come è costruito il calcolo <span class="sunto">legge di potenza</span></summary>
-    <p class="regime-nota" id="fiscoNota">—</p>
-    <p class="spiega">
-      Il prezzo futuro esce da un solo modello: la <b>legge di potenza</b> di Giovanni
-      Santostasi, prezzo = 10<sup>−16,239</sup> × t<sup>5,611</sup> con t in giorni dal blocco
-      genesi. I parametri sono stati rifatti il 16 agosto 2026 sui 5.843 giorni di storia di
-      Bitcoin (R² 0,9598), non copiati. Il modello non dà un prezzo ma un <b>corridoio</b>: le
-      tre linee sono il 5°, il 50° e il 95° percentile degli scarti dalla retta.
-      Non c'è nient'altro — nessun tasso di crescita scelto a mano, nessun margine arbitrario.
-    </p>
-    <p class="spiega">
-      La legge di potenza è una linea liscia, la realtà no: Bitcoin scende del 70% e ci mette
-      anni a tornare. Se capita appena hai cominciato a vendere, liquidi molti più satoshi allo
-      stesso prezzo e quelli non tornano più. Quando arriverà non lo sa nessuno, quindi non te lo
-      chiedo: la <b>prova del crollo</b> lo fa succedere in ognuno dei cinquant'anni, uno alla
-      volta, e ti riporta il caso peggiore.
-    </p>
-  </details>
 
 </form>
 
@@ -126,6 +108,6 @@
   <p class="cod">Codice aperto — <a href="https://github.com/castelsim/retire-in-bitcoin">github.com/castelsim/retire-in-bitcoin</a></p>
 </footer>
 
-<script src="script.js?v=20260816m"></script>
+<script src="script.js?v=20260816p"></script>
 </body>
 </html>

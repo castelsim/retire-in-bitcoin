@@ -399,7 +399,7 @@ const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
 const $prezzo = $("prezzoOggi"), $costo = $("costoMedio"), $stack = $("stack"), $investito = $("investito");
 const $oltreAnno = $("oltreUnAnno");
-const $out = $("risultati");
+const $out = $("risultati"), $grafico = $("grafico");
 
 Object.keys(PAESI).forEach(n => {
   const o = document.createElement("option");
@@ -438,7 +438,6 @@ function aggiornaValuta() {
   $("paeseNome").textContent = $paese.value;
   const f = FISCO[$paese.value];
   $("fiscoEtichetta").textContent = f.etichetta;
-  $("fiscoNota").textContent = f.nota;
   // La durata di detenzione conta solo dove esiste un'esenzione: altrove
   // la domanda non ha senso e la casella sparisce.
   $("rigaOltreAnno").classList.toggle("hidden", !f.esenteOltreAnno);
@@ -615,8 +614,9 @@ function grafico(base, cambio) {
             return SCENARI.map((sc, i) => {
               const v = lineaCorridoio(g, sc.perc) * cambio;
               const y = py(v) + (i === 0 ? 13 : i === 2 ? -6 : 4);
+              // A destra della riga: è lì che guardi mentre la trascini verso il futuro.
               return `<circle cx="${inizioX.toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.5" class="g-punto" />
-                      <text x="${(inizioX - 7).toFixed(1)}" y="${y.toFixed(1)}" class="g-valore" text-anchor="end">${sym} ${breve(v)}</text>`;
+                      <text x="${(inizioX + 10).toFixed(1)}" y="${y.toFixed(1)}" class="g-valore">${sym} ${breve(v)}</text>`;
             }).join("");
           })()}
           <circle cx="${oggiX.toFixed(1)}" cy="${py(base.prezzoOggi).toFixed(1)}" r="4" class="g-oggi" />
@@ -655,17 +655,19 @@ function render() {
   const annoInizio = NOW_YEAR + rCentro.attesa;
 
   // — Il numero
+  const pa = pianoDiAccumulo(base, lineaDi(base, CEN), stack);
   const testa = `
     <div class="verdetto">
       <p class="occhiello">Per incassare ${c.sym} ${fmt(base.nettoAnnuo)} netti ogni anno,
-      dai ${base.etaInizio} anni (nel ${annoInizio}) fino ai ${ETA_MAX}, ti servono oggi</p>
-      <p class="cifra">${fmtBTC(rCentro.btcNecessari)}<span class="unita">BTC</span></p>
-      <p class="sotto">${c.sym} ${fmt(rCentro.btcNecessari * base.prezzoOggi)} ai prezzi di oggi · fra ${fmtBTC(rAlto.btcNecessari)} e ${fmtBTC(rBasso.btcNecessari)} BTC dal tetto al fondo del corridoio</p>
-      ${stack > 0 ? `<div class="cop-testa">${barra(stack / rCentro.btcNecessari)}<p>ne hai ${fmtBTC(stack)}: sei al <b>${fmtPct(stack / rCentro.btcNecessari)}</b></p></div>` : ""}
+      dai ${base.etaInizio} anni (nel ${annoInizio}) fino ai ${ETA_MAX}, devi mettere da parte</p>
+      ${!pa || pa.giaCoperto
+        ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
+           <p class="sotto">i tuoi ${fmtBTC(stack)} BTC coprono già l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
+        : `<p class="cifra">${c.sym} ${fmt(pa.mensile)}<span class="unita">al mese</span></p>
+           <p class="sotto">per ${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} in tutto · così arrivi a <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>, che è quello che ti serve${stack > 0 ? ` (ne hai già ${fmtBTC(stack)})` : ""}</p>`}
     </div>`;
 
-  // — Quanto devi investire da qui a lì
-  const pa = pianoDiAccumulo(base, lineaDi(base, CEN), stack);
+  // — Il dettaglio del versamento
   let accumuloBox = "";
   if (pa) {
     const paSup = pianoDiAccumulo(base, lineaDi(base, SUP), stack);
@@ -677,11 +679,7 @@ function render() {
            <p class="intro">I ${fmtBTC(stack)} BTC che hai già superano l'obiettivo di ${fmtBTC(pa.btcObiettivo)}. Da qui in poi basta non venderli.</p>
          </section>`
       : `<section class="blocco">
-      <h2>Quanto devi investire da qui ai ${base.etaInizio} anni</h2>
-      <p class="verso">
-        <b class="grande">${c.sym} ${fmt(pa.mensile)}</b> al mese
-        <span class="verso-nota">per ${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} in tutto${stack > 0 ? `, oltre ai ${fmtBTC(stack)} BTC che hai già` : ""}</span>
-      </p>
+      <h2>Perché quella cifra, e non un'altra</h2>
       ${scartoFraLinee < 0.02 ? `
       <p class="intro sorpresa">E qui c'è la cosa che non ti aspetti: <b>la cifra è la stessa su tutte e tre le linee del corridoio</b>.
       Se Bitcoin salirà molto te ne serviranno meno, ma li pagherai di più; se salirà poco te ne serviranno di più, e costeranno meno.
@@ -849,7 +847,8 @@ function render() {
       </p>
     </section>`;
 
-  $out.innerHTML = testa + grafico(base, cambio) + accumuloBox + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
+  $grafico.innerHTML = grafico(base, cambio);
+  $out.innerHTML = testa + accumuloBox + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
 }
 
 // ------------------------------------------------------------
@@ -878,8 +877,8 @@ function trascina(svg, clientX) {
   }
 }
 
-let inTrascinamento = null;
-$out.addEventListener("pointerdown", e => {
+let inTrascinamento = false;
+document.addEventListener("pointerdown", e => {
   const svg = e.target.closest && e.target.closest(".gfx svg");
   if (!svg) return;
   // Col dito si parte solo dalla maniglia: altrimenti il tocco per scorrere
@@ -888,15 +887,21 @@ $out.addEventListener("pointerdown", e => {
   const sullaPresa = !!(e.target.closest(".g-presa") || e.target.closest(".g-maniglia"));
   if (e.pointerType !== "mouse" && !sullaPresa) return;
   e.preventDefault();
-  inTrascinamento = svg;
+  inTrascinamento = true;
   document.body.classList.add("sto-trascinando");
   trascina(svg, e.clientX);
 });
 document.addEventListener("pointermove", e => {
-  if (inTrascinamento) { e.preventDefault(); trascina(inTrascinamento, e.clientX); }
+  if (!inTrascinamento) return;
+  // Il grafico viene ridisegnato a ogni movimento: il nodo di partenza non è
+  // più nel documento e misurarlo darebbe coordinate sbagliate. Si ripesca.
+  const svg = document.querySelector(".gfx svg");
+  if (!svg) return;
+  e.preventDefault();
+  trascina(svg, e.clientX);
 }, { passive: false });
 document.addEventListener("pointerup", () => {
-  inTrascinamento = null;
+  inTrascinamento = false;
   document.body.classList.remove("sto-trascinando");
 });
 

@@ -41,6 +41,10 @@ body {
 }
 
 main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
+/* Il grafico apre la pagina: si vede prima ancora di aver scritto qualcosa. */
+.grafico-testa { margin: 0 0 1.75rem; }
+.grafico-testa .blocco { padding: 0; border: 0; }
+.grafico-testa h2 { font-size: 1.05rem; }
 
 /* ---------- Testata ---------- */
 .testata {
@@ -387,7 +391,9 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .g-nota-inizio { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
 .g-oggi { fill: var(--text); stroke: var(--ink); stroke-width: 2; }
 .g-punto { fill: var(--keep); }
-.g-valore { fill: var(--keep); font-family: var(--mono); font-size: 10px; }
+/* I prezzi del corridoio stanno sull ink piu chiaro: sopra la banda verde
+   il verde perdeva stacco. Il pallino resta verde e li ancora alla linea. */
+.g-valore { fill: var(--text); font-family: var(--mono); font-size: 11px; font-weight: 600; }
 /* Un contorno del colore del fondo stacca le scritte dalla griglia e dalle linee. */
 .g-valore, .g-nota-oggi, .g-nota-inizio, .g-tacca {
   paint-order: stroke;
