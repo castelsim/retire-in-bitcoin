@@ -223,10 +223,11 @@ function simula(p, linea, btc0) {
 }
 
 /**
- * Quanti bitcoin servono OGGI. Bisezione sulla simulazione: il minimo che
- * arriva ai cento anni senza esaurirsi.
+ * Quanti bitcoin servono OGGI, senza margini: il minimo che arriva ai cento
+ * anni se il prezzo segue la linea senza scossoni. Serve come base di calcolo;
+ * il numero che si mostra è quello prudente, qui sotto.
  */
-function fabbisogno(p, linea) {
+function fabbisognoLiscio(p, linea) {
   const attesa = Math.max(0, p.etaInizio - p.eta);
   const anni = Math.max(0, ETA_MAX - p.etaInizio);
   const prezzoInizio = linea(attesa);
@@ -267,7 +268,7 @@ function pianoDiAccumulo(p, linea, stack) {
   let obiettivo = fabbisogno(p, linea).btcNecessari;
   let mensile = 0, costoMedio = p.costoMedio;
 
-  for (let giro = 0; giro < 3; giro++) {
+  for (let giro = 0; giro < 2; giro++) {
     const mancano = Math.max(0, obiettivo - stack);
     mensile = mancano / btcPerEuroMensile;
     const speso = mensile * mesi;
@@ -288,6 +289,24 @@ function pianoDiAccumulo(p, linea, stack) {
     costoMedioFinale: costoMedio,
     giaCoperto: mancano === 0,
   };
+}
+
+/**
+ * IL NUMERO CHE CONTA: quanti bitcoin servono davvero.
+ *
+ * Il fabbisogno liscio non basta, perché la realtà non è liscia: Bitcoin
+ * scende del 70% e ci mette anni a tornare, e se capita mentre stai vendendo
+ * liquidi molti più satoshi allo stesso prezzo. Quel capitale, al primo
+ * scossone, finisce prima dei cento anni.
+ *
+ * Qui il crollo si fa succedere in OGNI anno del decumulo, uno alla volta, e
+ * il capitale restituito è quello che regge anche nel caso peggiore. Non è un
+ * avviso da leggere: è già dentro il numero.
+ */
+function fabbisogno(p, linea) {
+  const base = fabbisognoLiscio(p, linea);
+  const conCrollo = capitaleAntiCrollo(p, base.btcNecessari, linea);
+  return { ...base, btcNecessari: conCrollo || base.btcNecessari * 3, btcLiscio: base.btcNecessari };
 }
 
 /** La linea del corridoio di uno scenario, portata nella valuta locale. */
@@ -340,7 +359,7 @@ function capitaleAntiCrollo(p, btcBase, linea) {
   if (testTenuta(p, btcBase, linea).regge) return btcBase;
   let lo = 1, hi = 8;
   if (!testTenuta(p, btcBase * hi, linea).regge) return null;
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < 16; i++) {
     const mid = (lo + hi) / 2;
     if (testTenuta(p, btcBase * mid, linea).regge) hi = mid; else lo = mid;
   }
@@ -740,7 +759,6 @@ function render() {
     const r = fabbisogno(base, linea);
     const eta = primaEtaSufficiente(base, stack, sc);
     const cop = stack > 0 ? stack / r.btcNecessari : 0;
-    const tenuta = testTenuta(base, r.btcNecessari, linea);
     return `
       <article class="scenario" style="--tono:${sc.tono}">
         <header><h3>${sc.nome}</h3><span class="cagr">${sc.q} percentile</span></header>
@@ -748,16 +766,6 @@ function render() {
         <p class="scenario-eq">${c.sym} ${fmt(r.btcNecessari * base.prezzoOggi)} ai prezzi di adesso · bitcoin a ${c.sym} ${fmt(r.prezzoInizio)} quando cominci</p>
         <p class="scenario-desc">${sc.desc}</p>
         ${stack > 0 ? `<div class="cop">${barra(cop)}<p>i tuoi ${fmtBTC(stack)} BTC coprono il <b>${fmtPct(cop)}</b>${eta ? ` · basterebbero cominciando a <b>${eta} anni</b>` : " · non bastano nemmeno rimandando"}</p></div>` : ""}
-        <p class="tenuta ${tenuta.regge ? "ok" : "ko"}">
-          ${tenuta.regge
-            ? `Regge un crollo del 70% in qualunque anno arrivi: nel caso peggiore restano ${fmtBTC(tenuta.btcResidui)} BTC.`
-            : (() => {
-                const serve = capitaleAntiCrollo(base, r.btcNecessari, linea);
-                const quando = tenuta.annoCrollo === 0 ? "appena cominci" : `${tenuta.annoCrollo} anni dopo l'inizio`;
-                return `Il momento peggiore per un crollo del 70% è <b>${quando}</b>: ti lascerebbe a secco a ${tenuta.etaRottura} anni.`
-                  + (serve ? ` Per reggerlo servirebbero <b>${fmtBTC(serve)} BTC</b> (+${((serve / r.btcNecessari - 1) * 100).toFixed(0)}%).` : "");
-              })()}
-        </p>
       </article>`;
   }).join("");
 
@@ -821,6 +829,7 @@ function render() {
     <section class="blocco piede">
       <h2>Che cosa ho assunto</h2>
       <ul class="ipotesi">
+        <li><b>Regge un crollo del 70%</b> — il capitale non è il minimo che basta se tutto va liscio (sarebbero ${fmtBTC(rCentro.btcLiscio)} BTC), ma quello che sopravvive a un crollo del 70% con recupero in quattro anni, provato in <b>ognuno</b> dei ${rCentro.anni} anni di prelievi e tenendo il peggiore.</li>
         <li><b>Il caso peggiore</b> — tutti i conti usano la linea di <b>supporto</b>, il 5° percentile: nella storia di Bitcoin il prezzo è stato più in basso solo cinque giorni su cento. Sulla mediana servirebbero ${fmtBTC(fabbisogno(base, lineaDi(base, CEN)).btcNecessari)} BTC invece di ${fmtBTC(rCentro.btcNecessari)}.</li>
         <li><b>Un solo modello di prezzo</b> — la legge di potenza, coi parametri rifatti il ${PL_DATA_FIT} su ${fmt(PL_PUNTI)} giorni di storia: esponente ${String(PL_N).replace(".", ",")}, R² ${String(PL_R2).replace(".", ",")}. Nessun tasso di crescita scelto a mano.</li>
         <li><b>La crescita rallenta</b> — vale n/t, per costruzione: ${fmtPct(crescitaIstantanea(d0))} adesso, ${fmtPct(crescitaIstantanea(d0 + 10 * 365.25))} fra dieci anni, ${fmtPct(crescitaIstantanea(d0 + 30 * 365.25))} fra trenta.</li>

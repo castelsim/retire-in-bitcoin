@@ -3,7 +3,7 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_MAX,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_MAX,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
@@ -80,9 +80,15 @@ console.log('\n--- 6. TEST DI TENUTA ---');
 const L=lineaDi(base,CEN);
 ok('capitale minuscolo: non regge', !testTenuta(base,1e-8,L).regge);
 ok('capitale enorme: regge', testTenuta(base,50,L).regge);
-const serve=capitaleAntiCrollo(base,r.btcNecessari,L);
-ok('per reggere un crollo serve piu del minimo', serve===null||serve>r.btcNecessari,
-   serve?('+'+((serve/r.btcNecessari-1)*100).toFixed(0)+'%'):'oltre 8x');
+// la prudenza sta DENTRO il numero, non in un avviso
+const liscio=fabbisognoLiscio(base,L).btcNecessari;
+console.log('     liscio '+liscio.toFixed(4)+' -> prudente '+r.btcNecessari.toFixed(4)+' BTC');
+ok('IL NUMERO MOSTRATO REGGE GIA IL CROLLO PEGGIORE', testTenuta(base,r.btcNecessari,L).regge);
+ok('e chiede piu del minimo liscio', r.btcNecessari>liscio,
+   '+'+((r.btcNecessari/liscio-1)*100).toFixed(0)+'%');
+ok('il minimo liscio invece NON regge', !testTenuta(base,liscio,L).regge);
+ok('un filo meno del numero prudente non regge',
+   !testTenuta(base,r.btcNecessari*0.92,L).regge, 'il margine e stretto, non generoso');
 
 console.log('\n--- 7. I SEI PAESI ---');
 const tab=Object.keys(PAESI).map(n=>({n,v:fab({...base,paese:n},CEN)})).sort((a,b)=>a.v-b.v);
