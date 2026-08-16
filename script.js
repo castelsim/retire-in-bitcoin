@@ -426,7 +426,7 @@ const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
 const $prezzo = $("prezzoOggi"), $costo = $("costoMedio"), $stack = $("stack"), $investito = $("investito");
 const $oltreAnno = $("oltreUnAnno");
-const $out = $("risultati"), $grafico = $("grafico");
+const $out = $("risultati"), $grafico = $("grafico"), $corridoio = $("corridoio");
 
 Object.keys(PAESI).forEach(n => {
   const o = document.createElement("option");
@@ -792,8 +792,7 @@ function render() {
   if (prezziLive.usd) {
     const pos = posizioneNelCorridoio(prezziLive.usd);
     corridoioBox = `
-    <section class="blocco">
-      <h2>Dove sta Bitcoin adesso, dentro il corridoio</h2>
+    <div class="corridoio-testa">
       <div class="corridoio">
         <div class="corr-scala">
           <span class="corr-tacca" style="left:${(pos.fraz50 * 100).toFixed(1)}%"></span>
@@ -805,8 +804,8 @@ function render() {
           <span class="hi">resistenza<br /><b>${c.sym} ${fmt(pos.resistenza * cambio)}</b></span>
         </div>
       </div>
-      <p class="nota">Il prezzo di adesso è il <b>${fmtPct(pos.rapporto)}</b> della retta di regressione. Il corridoio non dice quando: dice dove il prezzo è stato per il novanta per cento della sua storia.</p>
-    </section>`;
+      <p class="nota">Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta di regressione, cioè nella parte bassa della fascia. Il corridoio non dice quando: dice dove il prezzo è stato per il novanta per cento della sua storia.</p>
+    </div>`;
   }
 
   // — Le tre linee
@@ -912,7 +911,8 @@ function render() {
     </section>`;
 
   $grafico.innerHTML = grafico(base, cambio) + `<div id="verdetto">${testa}</div>`;
-  $out.innerHTML = accumuloBox + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
+  $corridoio.innerHTML = corridoioBox;
+  $out.innerHTML = accumuloBox + timelineBox + scenariBox + fiscoBox + paesiBox + ipotesi;
 }
 
 // ------------------------------------------------------------

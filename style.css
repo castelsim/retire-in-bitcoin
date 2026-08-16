@@ -501,6 +501,11 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .timeline .residui { color: var(--text); font-weight: 600; }
 .timeline td.num, .timeline th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
+/* La fascia sta sotto il grafico, nella prima schermata: si legge di colpo
+   dove sta il prezzo fra il fondo e il tetto. */
+.corridoio-testa { margin: .9rem 0 0; }
+.corridoio-testa .nota { margin-top: .9rem; }
+
 /* Il corridoio: dove sta il prezzo fra il fondo e il tetto della fascia */
 .corridoio { margin: 1.5rem 0 0; }
 .corr-scala {
