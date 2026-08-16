@@ -544,7 +544,11 @@ function grafico(base, cambio) {
   const st = STORICO.filter(([g]) => g / 365.25 + 2009 >= annoDa)
     .map(([g, v]) => `${px(2009 + g / 365.25).toFixed(1)},${py(v * cambio).toFixed(1)}`);
 
-  const oggiX = px(NOW_YEAR + 0.6), inizioX = px(NOW_YEAR + (base.etaInizio - base.eta));
+  // Oggi non è "l'inizio del 2026": è il punto dell'anno in cui siamo davvero.
+  // La riga del primo prelievo parte da lì, così quando la porti al minimo
+  // finisce esattamente sul pallino di oggi, senza scarti.
+  const oggiFraz = NOW_YEAR + (giorniDaGenesi() - giorniDaGenesi(new Date(NOW_YEAR, 0, 1))) / 365.25;
+  const oggiX = px(oggiFraz), inizioX = px(oggiFraz + (base.etaInizio - base.eta));
   const tacche = [1, 100, 10000, 1e6, 1e8].filter(v => v <= maxP);
   const etichettaP = v => v >= 1e6 ? (v / 1e6) + " mln" : v >= 1000 ? (v / 1000) + "k" : String(v);
   const anniAsse = anni.filter(a => a % 10 === 0);
