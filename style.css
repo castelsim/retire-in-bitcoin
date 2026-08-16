@@ -105,7 +105,9 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
 /* I comandi in una riga sola: si leggono come una frase, non come un modulo. */
 .barra-comandi {
   display: flex;
-  align-items: center;
+  /* baseline, non center: cosi tutte le parole poggiano sulla stessa riga.
+     Col centro ogni frase si allineava al proprio mezzo e i testi ballavano. */
+  align-items: baseline;
   gap: .35rem 1.1rem;
   flex-wrap: wrap;
   background: var(--ink-2);
@@ -115,7 +117,8 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   margin-bottom: .9rem;
 }
 .barra-comandi .frase { margin: 0; font-size: .98rem; line-height: 1.7; white-space: nowrap; }
-.barra-comandi .sep { color: var(--faint); }
+
+.barra-comandi .sep { color: var(--faint); font-size: .98rem; line-height: 1.7; }
 .barra-comandi .stato-prezzo {
   margin-left: auto;
   border: 0;
