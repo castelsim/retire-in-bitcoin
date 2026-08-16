@@ -234,6 +234,52 @@ function fabbisogno(p, linea) {
            nettoInizio, lordoInizio: lordo, aliquotaEff, righe: sim.righe };
 }
 
+/**
+ * Quanto devi mettere da parte ogni mese, da oggi fino al primo prelievo,
+ * per arrivare ai bitcoin che ti servono.
+ *
+ * Comprando P ogni mese al prezzo che la linea dà per quel mese, i bitcoin
+ * accumulati sono P × Σ(1/prezzo). Quindi P si ricava per divisione, senza
+ * cercarlo a tentoni.
+ *
+ * C'è un giro: quello che compri adesso alza il tuo costo medio, il costo medio
+ * abbassa l'imposta futura, e con meno imposta servono meno bitcoin. Tre passate
+ * di punto fisso bastano a chiudere il cerchio.
+ */
+function pianoDiAccumulo(p, linea, stack) {
+  const mesi = Math.max(0, Math.round((p.etaInizio - p.eta) * 12));
+  if (mesi === 0) return null;
+
+  // Quanti bitcoin compra un euro al mese, lungo tutto il percorso.
+  let btcPerEuroMensile = 0;
+  for (let m = 0; m < mesi; m++) btcPerEuroMensile += 1 / linea(m / 12);
+
+  let obiettivo = fabbisogno(p, linea).btcNecessari;
+  let mensile = 0, costoMedio = p.costoMedio;
+
+  for (let giro = 0; giro < 3; giro++) {
+    const mancano = Math.max(0, obiettivo - stack);
+    mensile = mancano / btcPerEuroMensile;
+    const speso = mensile * mesi;
+    const btcComprati = mancano;
+    // Media pesata fra quello che avevi già e quello che comprerai.
+    costoMedio = (stack + btcComprati) > 0
+      ? (stack * p.costoMedio + speso) / (stack + btcComprati)
+      : p.costoMedio;
+    obiettivo = fabbisogno({ ...p, costoMedio }, linea).btcNecessari;
+  }
+
+  const mancano = Math.max(0, obiettivo - stack);
+  return {
+    mensile, mesi, anni: mesi / 12,
+    totale: mensile * mesi,
+    btcObiettivo: obiettivo,
+    btcDaComprare: mancano,
+    costoMedioFinale: costoMedio,
+    giaCoperto: mancano === 0,
+  };
+}
+
 /** La linea del corridoio di uno scenario, portata nella valuta locale. */
 function lineaDi(p, sc) {
   const d0 = giorniDaGenesi();
@@ -545,7 +591,8 @@ function grafico(base, cambio) {
       <h2>La legge di potenza, per intero</h2>
       <p class="intro">In bianco il prezzo che Bitcoin ha davvero avuto; in verde il corridoio del modello, con la mediana tratteggiata. La fascia scura è il periodo in cui venderai.</p>
       <figure class="gfx">
-        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Prezzo storico di Bitcoin e corridoio della legge di potenza, dal 2011 al ${annoFine}" preserveAspectRatio="xMidYMid meet">
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Prezzo storico di Bitcoin e corridoio della legge di potenza, dal 2011 al ${annoFine}. Trascina la riga verticale per cambiare l'anno del primo prelievo." preserveAspectRatio="xMidYMid meet"
+               data-da="${annoDa}" data-a="${annoFine}" data-ml="${ML}" data-mr="${MR}" data-w="${W}">
           <rect x="${inizioX.toFixed(1)}" y="${MT}" width="${(W - MR - inizioX).toFixed(1)}" height="${H - MT - MB}" class="g-decumulo" />
           ${tacche.map(v => `<line x1="${ML}" y1="${py(v).toFixed(1)}" x2="${W - MR}" y2="${py(v).toFixed(1)}" class="g-griglia" />
              <text x="${ML - 8}" y="${(py(v) + 4).toFixed(1)}" class="g-tacca" text-anchor="end">${etichettaP(v)}</text>`).join("")}
@@ -554,7 +601,11 @@ function grafico(base, cambio) {
           <polyline points="${cen.join(" ")}" class="g-centro" />
           <polyline points="${st.join(" ")}" class="g-storico" />
           <line x1="${inizioX.toFixed(1)}" y1="${MT}" x2="${inizioX.toFixed(1)}" y2="${H - MB}" class="g-inizio" />
-          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 12}" class="g-nota-inizio">vendi da qui (${base.etaInizio} anni)</text>
+          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 12}" class="g-nota-inizio">vendi da qui (${base.etaInizio} anni) ⇄</text>
+          <rect class="g-presa" x="${(inizioX - 11).toFixed(1)}" y="${MT}" width="22" height="${H - MT - MB}" />
+          <g class="g-maniglia" transform="translate(${inizioX.toFixed(1)},${H - MB})">
+            <circle r="7" /><path d="M-3.5 -3 L-6 0 L-3.5 3 M3.5 -3 L6 0 L3.5 3" />
+          </g>
           ${(() => {
             // Su dieci ordini di grandezza la banda si vede sottile: i tre valori
             // all'anno d'inizio si scrivono, così il range si legge in numeri.
@@ -612,6 +663,33 @@ function render() {
       <p class="sotto">${c.sym} ${fmt(rCentro.btcNecessari * base.prezzoOggi)} ai prezzi di oggi · fra ${fmtBTC(rAlto.btcNecessari)} e ${fmtBTC(rBasso.btcNecessari)} BTC dal tetto al fondo del corridoio</p>
       ${stack > 0 ? `<div class="cop-testa">${barra(stack / rCentro.btcNecessari)}<p>ne hai ${fmtBTC(stack)}: sei al <b>${fmtPct(stack / rCentro.btcNecessari)}</b></p></div>` : ""}
     </div>`;
+
+  // — Quanto devi investire da qui a lì
+  const pa = pianoDiAccumulo(base, lineaDi(base, CEN), stack);
+  let accumuloBox = "";
+  if (pa) {
+    const paSup = pianoDiAccumulo(base, lineaDi(base, SUP), stack);
+    const paRes = pianoDiAccumulo(base, lineaDi(base, RES), stack);
+    const scartoFraLinee = Math.abs(paRes.mensile - paSup.mensile) / Math.max(1, pa.mensile);
+    accumuloBox = pa.giaCoperto
+      ? `<section class="blocco">
+           <h2>Non devi investire altro</h2>
+           <p class="intro">I ${fmtBTC(stack)} BTC che hai già superano l'obiettivo di ${fmtBTC(pa.btcObiettivo)}. Da qui in poi basta non venderli.</p>
+         </section>`
+      : `<section class="blocco">
+      <h2>Quanto devi investire da qui ai ${base.etaInizio} anni</h2>
+      <p class="verso">
+        <b class="grande">${c.sym} ${fmt(pa.mensile)}</b> al mese
+        <span class="verso-nota">per ${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} in tutto${stack > 0 ? `, oltre ai ${fmtBTC(stack)} BTC che hai già` : ""}</span>
+      </p>
+      ${scartoFraLinee < 0.02 ? `
+      <p class="intro sorpresa">E qui c'è la cosa che non ti aspetti: <b>la cifra è la stessa su tutte e tre le linee del corridoio</b>.
+      Se Bitcoin salirà molto te ne serviranno meno, ma li pagherai di più; se salirà poco te ne serviranno di più, e costeranno meno.
+      In euro i due effetti si annullano. <b>Quanto devi versare non dipende da quale scenario si avvererà</b> — dipende solo da quanto ti serve e da quanto tempo hai.</p>`
+      : `<p class="intro">Sulla linea bassa servirebbero ${c.sym} ${fmt(paSup.mensile)} al mese, su quella alta ${c.sym} ${fmt(paRes.mensile)}: la differenza è piccola perché i due effetti — più bitcoin necessari, prezzo più basso — quasi si annullano.</p>`}
+      <p class="nota">Il conto assume che tu compri ai prezzi della linea centrale, che oggi sta sopra il mercato: al momento Bitcoin vale meno di quanto il modello dica, quindi i primi acquisti costeranno meno e la cifra qui sopra è prudente. Comprare ogni mese la stessa cifra è l'ipotesi più semplice, e serve a dare un ordine di grandezza — non è un consiglio su come farlo.</p>
+    </section>`;
+  }
 
   // — La timeline: è questa che spiega il numero
   const righe = rCentro.righe;
@@ -771,8 +849,56 @@ function render() {
       </p>
     </section>`;
 
-  $out.innerHTML = testa + grafico(base, cambio) + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
+  $out.innerHTML = testa + grafico(base, cambio) + accumuloBox + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
 }
+
+// ------------------------------------------------------------
+// Il grafico si manovra: trascinando la riga verticale si sposta l'anno
+// del primo prelievo. L'ascoltatore sta sul contenitore, non sull'SVG,
+// perché l'SVG viene ridisegnato a ogni modifica.
+// ------------------------------------------------------------
+function annoDallaX(svg, clientX) {
+  const r = svg.getBoundingClientRect();
+  const da = +svg.dataset.da, a = +svg.dataset.a;
+  const ml = +svg.dataset.ml, mr = +svg.dataset.mr, w = +svg.dataset.w;
+  // dalle coordinate dello schermo a quelle del viewBox, poi ad anni
+  const x = (clientX - r.left) / r.width * w;
+  const frazione = (x - ml) / (w - ml - mr);
+  return Math.round(da + frazione * (a - da));
+}
+
+function trascina(svg, clientX) {
+  const eta = clamp(
+    parseInt($eta.value, 10) + (annoDallaX(svg, clientX) - NOW_YEAR),
+    parseInt($eta.value, 10), ETA_MAX - 1);
+  if (String(eta) !== $etaInizio.value) {
+    $etaInizio.value = eta;
+    adattaLarghezza($etaInizio);
+    render();
+  }
+}
+
+let inTrascinamento = null;
+$out.addEventListener("pointerdown", e => {
+  const svg = e.target.closest && e.target.closest(".gfx svg");
+  if (!svg) return;
+  // Col dito si parte solo dalla maniglia: altrimenti il tocco per scorrere
+  // la pagina sposterebbe l'anno senza che tu l'abbia chiesto. Col mouse,
+  // dove il gesto non è ambiguo, si può cliccare in qualunque punto.
+  const sullaPresa = !!(e.target.closest(".g-presa") || e.target.closest(".g-maniglia"));
+  if (e.pointerType !== "mouse" && !sullaPresa) return;
+  e.preventDefault();
+  inTrascinamento = svg;
+  document.body.classList.add("sto-trascinando");
+  trascina(svg, e.clientX);
+});
+document.addEventListener("pointermove", e => {
+  if (inTrascinamento) { e.preventDefault(); trascina(inTrascinamento, e.clientX); }
+}, { passive: false });
+document.addEventListener("pointerup", () => {
+  inTrascinamento = null;
+  document.body.classList.remove("sto-trascinando");
+});
 
 // ------------------------------------------------------------
 // Ascolto: ogni modifica ridisegna, senza aspettare un pulsante

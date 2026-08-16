@@ -351,6 +351,18 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 .legenda .k { color: var(--keep); }
 .legenda .t { color: var(--tax); }
 
+/* Quanto versare: il numero che l utente puo davvero controllare */
+.verso { margin: 1.25rem 0 1rem; display: flex; align-items: baseline; gap: .8rem; flex-wrap: wrap; }
+.verso .grande {
+  font-family: var(--mono);
+  font-size: clamp(2rem, 5vw, 2.9rem);
+  font-weight: 700;
+  color: var(--keep);
+  letter-spacing: -.02em;
+}
+.verso-nota { font-family: var(--mono); font-size: .8rem; color: var(--faint); }
+.sorpresa { border-left: 2px solid var(--keep); padding-left: 1rem; }
+
 /* Il grafico: il fatto (bianco, continuo) contro il modello (verde, tratteggiato).
    Il tratteggio è il secondo segnale, così l'identità non dipende dal solo colore. */
 .gfx { margin: 1.25rem 0 0; }
@@ -363,6 +375,15 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 .g-storico { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; }
 .g-decumulo { fill: #fff; opacity: .035; }
 .g-inizio { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+/* Si trascina: l area di presa e larga 22 px anche se la riga ne misura 1. */
+.g-presa { fill: transparent; cursor: ew-resize; }
+.g-maniglia { cursor: ew-resize; }
+.gfx svg { touch-action: pan-y; }
+.g-maniglia circle { fill: var(--keep); }
+.g-maniglia path { stroke: var(--ink); stroke-width: 1.4; fill: none; stroke-linecap: round; }
+.gfx svg:hover .g-inizio { stroke: var(--keep); }
+body.sto-trascinando { user-select: none; }
+body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .g-nota-inizio { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
 .g-oggi { fill: var(--text); stroke: var(--ink); stroke-width: 2; }
 .g-punto { fill: var(--keep); }

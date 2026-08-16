@@ -3,7 +3,7 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_MAX,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_MAX,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
@@ -52,7 +52,27 @@ ok('un costo medio alto abbassa il fabbisogno', fab({...base,costoMedio:300000},
 ok('il bollo erode anche negli anni di attesa',
    fab({...base,paese:'Italia'},CEN) > fab({...base,paese:'Polonia'},CEN)*0.9);
 
-console.log('\n--- 5. TEST DI TENUTA ---');
+console.log('\n--- 5. QUANTO INVESTIRE DA QUI A LI ---');
+const L0=lineaDi(base,CEN);
+const pa=pianoDiAccumulo(base,L0,0);
+console.log('     da zero: '+Math.round(pa.mensile)+' EUR/mese per '+pa.anni+' anni = '+Math.round(pa.totale)+' EUR');
+ok('il versamento e positivo e finito', pa.mensile>0 && isFinite(pa.mensile));
+ok('i mesi sono quelli fra oggi e il primo prelievo', pa.mesi===(base.etaInizio-base.eta)*12);
+ok('il totale e mensile x mesi', Math.abs(pa.totale-pa.mensile*pa.mesi)<1);
+ok('con piu tempo si versa meno al mese',
+   pianoDiAccumulo({...base,etaInizio:65},lineaDi({...base,etaInizio:65},CEN),0).mensile < pa.mensile);
+ok('chiedendo il doppio si versa circa il doppio',
+   Math.abs(pianoDiAccumulo({...base,nettoAnnuo:20000},L0,0).mensile/pa.mensile-2)<0.15);
+ok('avendo gia dei bitcoin si versa meno', pianoDiAccumulo(base,L0,0.03).mensile < pa.mensile);
+ok('con abbastanza bitcoin non serve versare nulla', pianoDiAccumulo(base,L0,1).giaCoperto);
+// il risultato che conta: in euro le tre linee chiedono lo stesso
+const mS=pianoDiAccumulo(base,lineaDi(base,SUP),0).mensile;
+const mR=pianoDiAccumulo(base,lineaDi(base,RES),0).mensile;
+console.log('     supporto '+Math.round(mS)+' · centro '+Math.round(pa.mensile)+' · resistenza '+Math.round(mR)+' EUR/mese');
+ok('IL VERSAMENTO NON DIPENDE DALLA LINEA (piu alto il prezzo, meno BTC ma piu cari)',
+   Math.abs(mR-mS)/pa.mensile < 0.02, 'scarto '+(Math.abs(mR-mS)/pa.mensile*100).toFixed(1)+'%');
+
+console.log('\n--- 6. TEST DI TENUTA ---');
 const L=lineaDi(base,CEN);
 ok('capitale minuscolo: non regge', !testTenuta(base,1e-8,L).regge);
 ok('capitale enorme: regge', testTenuta(base,50,L).regge);
@@ -60,7 +80,7 @@ const serve=capitaleAntiCrollo(base,r.btcNecessari,L);
 ok('per reggere un crollo serve piu del minimo', serve===null||serve>r.btcNecessari,
    serve?('+'+((serve/r.btcNecessari-1)*100).toFixed(0)+'%'):'oltre 8x');
 
-console.log('\n--- 6. I SEI PAESI ---');
+console.log('\n--- 7. I SEI PAESI ---');
 const tab=Object.keys(PAESI).map(n=>({n,v:fab({...base,paese:n},CEN)})).sort((a,b)=>a.v-b.v);
 tab.forEach(x=>console.log('     '+x.n.padEnd(11)+x.v.toFixed(6)+' BTC'));
 ok('nessuno fuori scala', tab[5].v/tab[0].v<2, 'rapporto '+(tab[5].v/tab[0].v).toFixed(2));
