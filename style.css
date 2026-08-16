@@ -87,30 +87,37 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   padding: .5rem 1rem;
   margin-bottom: .9rem;
 }
-.barra-comandi .frase { margin: 0; font-size: 1.02rem; line-height: 1.8; }
+.barra-comandi .frase { margin: 0; font-size: .98rem; line-height: 1.7; white-space: nowrap; }
 .barra-comandi .sep { color: var(--faint); }
 .barra-comandi .stato-prezzo {
   margin-left: auto;
   border: 0;
   padding: 0;
-  gap: .45rem;
-  font-size: .72rem;
+  gap: .4rem;
+  font-size: .68rem;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
+.barra-comandi .stato-prezzo input.inline { font-size: .8rem; min-height: 32px; }
+.barra-comandi .badge { min-height: 32px; font-size: .62rem; padding: .1rem .35rem; }
 .barra-comandi .regime-inline { flex-basis: auto; }
 
 /* Il risultato galleggia sul grafico, in basso a destra: lì il grafico è vuoto. */
 #verdetto {
   position: absolute;
   right: 1.5%;
-  bottom: 22%;
-  max-width: 19rem;
+  top: 4%;
+  max-width: 18rem;
   z-index: 2;
 }
 #verdetto .verdetto {
-  background: rgba(10, 16, 28, .86);
-  backdrop-filter: blur(8px);
+  background: rgba(10, 16, 28, .82);
+  backdrop-filter: blur(6px);
   box-shadow: 0 8px 28px rgba(0,0,0,.35);
+  padding: .9rem 1.1rem 1rem;
 }
+#verdetto .occhiello { margin-bottom: .35rem; }
+#verdetto .sotto { margin-top: .6rem; }
 .cassetto-stack { margin-bottom: 2.5rem; }
 .grafico-testa { position: relative; margin: 0; }
 .schermata > form { grid-area: comandi; }
@@ -344,7 +351,7 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 }
 .cifra {
   font-family: var(--mono);
-  font-size: clamp(2.4rem, 4.4vw, 3.4rem);
+  font-size: clamp(2rem, 3.4vw, 2.6rem);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -.035em;

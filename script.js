@@ -688,8 +688,7 @@ function render() {
   const pa = pianoDiAccumulo(base, lineaDi(base, CEN), stack);
   const testa = `
     <div class="verdetto">
-      <p class="occhiello">Per incassare ${c.sym} ${fmt(base.nettoAnnuo)} netti ogni anno,
-      dai ${base.etaInizio} anni (nel ${annoInizio}) fino ai ${ETA_MAX}, devi mettere da parte</p>
+      <p class="occhiello">Devi mettere da parte</p>
       ${!pa
         ? // Cominci subito: non c'è nessun mese per accumulare, servono adesso.
           (stack >= rCentro.btcNecessari
@@ -699,9 +698,9 @@ function render() {
                <p class="sotto">cominciando a prelevare subito non c'è tempo per accumulare: quei bitcoin devi averli già${stack > 0 ? `, e ne hai ${fmtBTC(stack)}` : ""}. Sposta più avanti l'età da cui prelevi e comparirà quanto versare ogni mese.</p>`)
         : pa.giaCoperto
         ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
-           <p class="sotto">i tuoi ${fmtBTC(stack)} BTC coprono già l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
+           <p class="sotto">i tuoi ${fmtBTC(stack)} BTC superano l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
         : `<p class="cifra">${c.sym} ${fmt(pa.mensile)}<span class="unita">al mese</span></p>
-           <p class="sotto">per ${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} in tutto · così arrivi a <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>, che è quello che ti serve${stack > 0 ? ` (ne hai già ${fmtBTC(stack)})` : ""}</p>`}
+           <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}</p>`}
     </div>`;
 
   // — Il dettaglio del versamento
