@@ -1,5 +1,5 @@
 /* ============================================================
-   Pensione in Bitcoin
+   Integrazione in Bitcoin
    Il colore porta significato: --keep è quello che resta a te,
    --tax è quello che prende il fisco. Non si usano altrove.
    Le misure stanno in monospazio, le spiegazioni in proporzionale.
@@ -17,9 +17,7 @@
   --keep:   #4FE0C0;   /* quello che resta a te */
   --tax:    #F2A65A;   /* quello che prende il fisco */
   --zero:   #7C8DAD;
-  --calm:   #6FA8DC;
   --hope:   #B892F6;
-  --law:    #E88BB4;   /* la legge di potenza: un modello, non un'ipotesi */
   --ko:     #FF7A7A;
 
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", "Consolas", monospace;
@@ -497,14 +495,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 }
 .scenario-eq { font-family: var(--mono); font-size: .74rem; color: var(--faint); margin: 0 0 .8rem; }
 .scenario-desc { font-size: .84rem; color: var(--muted); margin: 0; }
-.scenario-nota {
-  font-size: .76rem;
-  color: var(--faint);
-  margin: .8rem 0 0;
-  padding-left: .7rem;
-  border-left: 1px solid var(--tono);
-}
-.scenario-nota b { color: var(--tono); }
 .cop { margin-top: 1rem; }
 .cop p { font-size: .78rem; color: var(--muted); margin: .5rem 0 0; }
 .tenuta {

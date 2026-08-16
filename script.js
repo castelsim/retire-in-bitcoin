@@ -1,5 +1,8 @@
 // ============================================================
-// Pensione in Bitcoin
+// Integrazione in Bitcoin
+//
+// Quanti bitcoin servono OGGI per incassare un importo netto ogni anno,
+// dall'età che scegli fino ai cento: un decumulo programmato.
 //
 // Un solo modello di prezzo: la legge di potenza di Giovanni Santostasi.
 // Un solo modello di imposta: quella del paese in cui vivi, sulla
