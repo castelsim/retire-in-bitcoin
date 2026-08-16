@@ -8,7 +8,7 @@ const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
 const base={paese:'Italia',eta:35,etaInizio:50,nettoAnnuo:10000,prezzoOggi:54400,
- costoMedio:0,oltreUnAnno:true,annoShock:2,cambioUsd:54400/63000};
+ costoMedio:0,oltreUnAnno:true,cambioUsd:54400/63000};
 const [SUP,CEN,RES]=SCENARI;
 const fab=(o,sc)=>fabbisogno(o,lineaDi(o,sc)).btcNecessari;
 

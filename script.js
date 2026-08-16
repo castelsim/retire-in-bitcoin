@@ -100,6 +100,9 @@ const SCENARI = [
     desc: "Il tetto del corridoio, dove arrivano i massimi delle bolle. Ci si passa, non ci si resta." },
 ];
 
+// Serie storica reale di Bitcoin, un punto al mese (fonte blockchain.info, 16/08/2026).
+// Serve a far vedere che la curva descrive dei dati, non un'idea.
+const STORICO = [[605,0.07],[635,0.06],[666,0.19],[696,0.28],[727,0.3],[758,0.48],[786,0.96],[817,0.8],[847,3.05],[878,9.12],[908,17.35],[939,14.06],[970,9.11],[1000,4.94],[1031,3.59],[1061,2.98],[1092,4.47],[1123,5.61],[1152,4.98],[1183,4.86],[1213,5.01],[1244,5.18],[1274,6.67],[1305,9.22],[1336,10.91],[1366,12.49],[1397,10.92],[1427,12.61],[1458,13.57],[1489,20.11],[1517,31.27],[1548,92.5],[1578,145],[1609,129],[1639,94.99],[1670,108],[1701,125],[1731,127],[1762,206],[1792,1134],[1823,736],[1854,800],[1882,583],[1913,459],[1943,448],[1974,621],[2004,600],[2035,563],[2066,501],[2096,374],[2127,345],[2157,376],[2188,311],[2219,227],[2247,252],[2278,248],[2308,226],[2339,232],[2369,256],[2400,288],[2431,228],[2461,237],[2492,328],[2522,371],[2553,428],[2584,377],[2613,432],[2644,414],[2674,456],[2705,526],[2735,636],[2766,655],[2797,576],[2827,604],[2858,697],[2888,730],[2919,958],[2950,920],[2978,1194],[3009,1035],[3039,1333],[3070,2205],[3100,2542],[3131,2739],[3162,4583],[3192,4164],[3223,6133],[3253,9646],[3284,12613],[3315,10083],[3343,10629],[3374,6854],[3404,9398],[3435,7387],[3465,6223],[3496,8171],[3527,6987],[3557,6593],[3588,6302],[3618,4279],[3649,3865],[3680,3470],[3708,3833],[3739,4114],[3769,5261],[3800,8272],[3830,11890],[3861,9589],[3892,9578],[3922,8057],[3953,9165],[3983,7757],[4014,7220],[4045,9502],[4074,8712],[4105,6405],[4135,8778],[4166,9698],[4196,9185],[4227,11115],[4258,11708],[4288,10841],[4319,13565],[4349,18192],[4380,28857],[4411,34318],[4439,46156],[4470,58730],[4500,53584],[4531,35685],[4561,35848],[4592,42214],[4623,47075],[4653,41522],[4684,61731],[4714,57828],[4745,47133],[4776,37919],[4804,37705],[4835,47064],[4865,38596],[4896,31716],[4926,20086],[4957,23648],[4988,19793],[5018,19599],[5049,20628],[5079,16433],[5110,16600],[5141,22836],[5169,23498],[5200,28033],[5230,29245],[5261,27704],[5291,30449],[5322,29275],[5353,27301],[5383,26917],[5414,34501],[5444,37867],[5475,42148],[5506,42951],[5535,62499],[5566,69651],[5596,63833],[5627,68352],[5657,60871],[5688,66180],[5719,59108],[5749,65621],[5780,72330],[5810,97504],[5841,92653],[5872,104744],[5900,84646],[5931,82338],[5961,94275],[5992,104028],[6022,108386],[6053,117829],[6084,108791],[6114,114404],[6145,108303],[6175,90831],[6206,88424],[6237,84120],[6265,65867],[6296,66694],[6326,75782],[6357,73755],[6387,60136],[6418,64721],[6434,63024]];
 const giorniDaGenesi = (data = new Date()) => (data.getTime() - GENESI) / 86400000;
 
 /** La retta della regressione, in dollari. */
@@ -239,21 +242,41 @@ function lineaDi(p, sc) {
 }
 
 /**
- * TEST DI TENUTA — la legge di potenza è una linea liscia, la realtà no.
- * Bitcoin scende del 70% e ci mette anni a tornare. Se succede subito dopo
- * che hai smesso di lavorare, vendi molti più sat allo stesso prezzo e quei
- * sat non tornano più. Qui il prezzo della linea viene moltiplicato per un
- * crollo che scende a 0,30 e recupera in quattro anni.
+ * PROVA DEL CROLLO — la legge di potenza è una linea liscia, la realtà no.
+ * Bitcoin scende del 70% e ci mette anni a tornare. Se succede appena hai
+ * cominciato a vendere, liquidi molti più sat allo stesso prezzo e quei sat
+ * non tornano più: è il rischio di sequenza.
+ *
+ * Quando arriverà il crollo non lo sa nessuno — non lo si chiede all'utente:
+ * si provano TUTTI gli anni del decumulo e si tiene il peggiore. È l'unico
+ * modo onesto di rispondere a «e se capitasse nel momento sbagliato?».
  */
-function testTenuta(p, btcIniziali, linea) {
-  const shockato = anni => {
-    const d = anni - (p.etaInizio - p.eta) - p.annoShock;
+function crolloDaAnno(p, linea, quando) {
+  const attesa = p.etaInizio - p.eta;
+  return anni => {
+    const d = anni - attesa - quando;
     const s = (d >= 0 && d < 4) ? 0.30 + 0.70 * (d / 4) : 1;
     return linea(anni) * s;
   };
-  const sim = simula(p, shockato, btcIniziali);
-  if (sim.bastano) return { regge: true, btcResidui: sim.righe[sim.righe.length - 1].residui };
-  return { regge: false, etaRottura: sim.righe[sim.righe.length - 1].eta };
+}
+
+function testTenuta(p, btcIniziali, linea) {
+  const anni = Math.max(1, ETA_MAX - p.etaInizio);
+  let peggiore = null;
+  for (let quando = 0; quando < anni; quando++) {
+    const sim = simula(p, crolloDaAnno(p, linea, quando), btcIniziali);
+    if (!sim.bastano) {
+      const etaRottura = sim.righe[sim.righe.length - 1].eta;
+      // Il caso peggiore è quello che ti lascia a secco prima.
+      if (!peggiore || etaRottura < peggiore.etaRottura) {
+        peggiore = { regge: false, etaRottura, annoCrollo: quando };
+      }
+    }
+  }
+  if (peggiore) return peggiore;
+  // Regge ovunque: si riporta quanto resta nel caso in cui il crollo arriva subito.
+  const sim = simula(p, crolloDaAnno(p, linea, 0), btcIniziali);
+  return { regge: true, btcResidui: sim.righe[sim.righe.length - 1].residui };
 }
 
 /** Quanto capitale servirebbe per reggere il crollo. */
@@ -261,7 +284,7 @@ function capitaleAntiCrollo(p, btcBase, linea) {
   if (testTenuta(p, btcBase, linea).regge) return btcBase;
   let lo = 1, hi = 8;
   if (!testTenuta(p, btcBase * hi, linea).regge) return null;
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 24; i++) {
     const mid = (lo + hi) / 2;
     if (testTenuta(p, btcBase * mid, linea).regge) hi = mid; else lo = mid;
   }
@@ -329,7 +352,7 @@ function applicaPrezzoLive() {
 const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
 const $prezzo = $("prezzoOggi"), $costo = $("costoMedio"), $stack = $("stack"), $investito = $("investito");
-const $oltreAnno = $("oltreUnAnno"), $shock = $("annoShock");
+const $oltreAnno = $("oltreUnAnno");
 const $out = $("risultati");
 
 Object.keys(PAESI).forEach(n => {
@@ -469,13 +492,95 @@ function leggiInput() {
     prezzoOggi: parseFloat($prezzo.value),
     costoMedio: parseFloat($costo.value || "0"),
     oltreUnAnno: $oltreAnno.checked,
-    annoShock: parseInt($shock.value, 10) || 0,
     // Il corridoio è in dollari: serve il cambio per portarlo nella valuta locale.
     cambioUsd: prezziLive.usd ? parseFloat($prezzo.value) / prezziLive.usd : null,
   };
 }
 
 const barra = f => `<div class="bar"><span style="width:${clamp(f * 100, 0, 100)}%"></span></div>`;
+
+
+// ------------------------------------------------------------
+// IL GRAFICO
+// Asse del tempo lineare in anni (si deve capire *quando*), asse dei prezzi
+// logaritmico (si va da 7 centesimi a centinaia di milioni). In log-log la
+// legge di potenza sarebbe una retta e direbbe «crescita costante»: qui la
+// curva si appiattisce, che è quello che il modello dice davvero.
+//
+// Il corridoio è UNA cosa, non tre serie: una banda con la mediana marcata.
+// Il colore distingue il fatto (storico, in ink neutro) dal modello (in verde,
+// tratteggiato) — e il tratteggio è il secondo segnale, così l'identità non
+// dipende dal solo colore.
+// ------------------------------------------------------------
+function grafico(base, cambio) {
+  const W = 760, H = 380, ML = 62, MR = 16, MT = 18, MB = 34;
+  const annoFine = NOW_YEAR + (ETA_MAX - base.eta);
+  const annoDa = 2011;
+  const px = a => ML + (a - annoDa) / (annoFine - annoDa) * (W - ML - MR);
+  const minP = 0.05, maxP = lineaCorridoio(giorniDaGenesi() + (annoFine - NOW_YEAR) * 365.25, SCENARI[2].perc);
+  const py = v => {
+    const l = Math.log10(Math.max(v, minP)), lo = Math.log10(minP), hi = Math.log10(maxP);
+    return MT + (1 - (l - lo) / (hi - lo)) * (H - MT - MB);
+  };
+  const giorniDi = a => giorniDaGenesi() + (a - NOW_YEAR) * 365.25;
+
+  // le tre linee, campionate ogni anno
+  const anni = [];
+  for (let a = annoDa; a <= annoFine; a++) anni.push(a);
+  const linea = perc => anni.map(a => `${px(a).toFixed(1)},${py(lineaCorridoio(giorniDi(a), perc) * cambio).toFixed(1)}`);
+  const sup = linea(SCENARI[0].perc), cen = linea(SCENARI[1].perc), res = linea(SCENARI[2].perc);
+  const banda = `M${res.join("L")}L${sup.slice().reverse().join("L")}Z`;
+
+  // la storia vera
+  const st = STORICO.filter(([g]) => g / 365.25 + 2009 >= annoDa)
+    .map(([g, v]) => `${px(2009 + g / 365.25).toFixed(1)},${py(v * cambio).toFixed(1)}`);
+
+  const oggiX = px(NOW_YEAR + 0.6), inizioX = px(NOW_YEAR + (base.etaInizio - base.eta));
+  const tacche = [1, 100, 10000, 1e6, 1e8].filter(v => v <= maxP);
+  const etichettaP = v => v >= 1e6 ? (v / 1e6) + " mln" : v >= 1000 ? (v / 1000) + "k" : String(v);
+  const anniAsse = anni.filter(a => a % 10 === 0);
+
+  return `
+    <section class="blocco">
+      <h2>La legge di potenza, per intero</h2>
+      <p class="intro">In bianco il prezzo che Bitcoin ha davvero avuto; in verde il corridoio del modello, con la mediana tratteggiata. La fascia scura è il periodo in cui venderai.</p>
+      <figure class="gfx">
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Prezzo storico di Bitcoin e corridoio della legge di potenza, dal 2011 al ${annoFine}" preserveAspectRatio="xMidYMid meet">
+          <rect x="${inizioX.toFixed(1)}" y="${MT}" width="${(W - MR - inizioX).toFixed(1)}" height="${H - MT - MB}" class="g-decumulo" />
+          ${tacche.map(v => `<line x1="${ML}" y1="${py(v).toFixed(1)}" x2="${W - MR}" y2="${py(v).toFixed(1)}" class="g-griglia" />
+             <text x="${ML - 8}" y="${(py(v) + 4).toFixed(1)}" class="g-tacca" text-anchor="end">${etichettaP(v)}</text>`).join("")}
+          ${anniAsse.map(a => `<text x="${px(a).toFixed(1)}" y="${H - 12}" class="g-tacca" text-anchor="middle">${a}</text>`).join("")}
+          <path d="${banda}" class="g-banda" />
+          <polyline points="${cen.join(" ")}" class="g-centro" />
+          <polyline points="${st.join(" ")}" class="g-storico" />
+          <line x1="${inizioX.toFixed(1)}" y1="${MT}" x2="${inizioX.toFixed(1)}" y2="${H - MB}" class="g-inizio" />
+          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 12}" class="g-nota-inizio">vendi da qui (${base.etaInizio} anni)</text>
+          ${(() => {
+            // Su dieci ordini di grandezza la banda si vede sottile: i tre valori
+            // all'anno d'inizio si scrivono, così il range si legge in numeri.
+            const g = giorniDi(NOW_YEAR + (base.etaInizio - base.eta));
+            const sym = PAESI[base.paese].sym;
+            const breve = v => v >= 1e6 ? (v / 1e6).toFixed(1).replace(".", ",") + " mln" : fmt(v);
+            return SCENARI.map((sc, i) => {
+              const v = lineaCorridoio(g, sc.perc) * cambio;
+              const y = py(v) + (i === 0 ? 13 : i === 2 ? -6 : 4);
+              return `<circle cx="${inizioX.toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.5" class="g-punto" />
+                      <text x="${(inizioX - 7).toFixed(1)}" y="${y.toFixed(1)}" class="g-valore" text-anchor="end">${sym} ${breve(v)}</text>`;
+            }).join("");
+          })()}
+          <circle cx="${oggiX.toFixed(1)}" cy="${py(base.prezzoOggi).toFixed(1)}" r="4" class="g-oggi" />
+          <text x="${(oggiX + 8).toFixed(1)}" y="${(py(base.prezzoOggi) - 8).toFixed(1)}" class="g-nota-oggi">oggi</text>
+        </svg>
+        <figcaption>
+          <span class="g-leg"><i class="l-storico"></i>prezzo reale</span>
+          <span class="g-leg"><i class="l-centro"></i>mediana del modello</span>
+          <span class="g-leg"><i class="l-banda"></i>corridoio, dal 5° al 95° percentile</span>
+          <span class="g-scala">prezzi in scala logaritmica</span>
+        </figcaption>
+      </figure>
+      <p class="nota">La curva si appiattisce perché la crescita della legge di potenza rallenta: ${fmtPct(crescitaIstantanea(giorniDaGenesi()))} adesso, ${fmtPct(crescitaIstantanea(giorniDi(annoFine)))} alla fine del grafico. Il prezzo reale ha passato metà della sua storia dentro la metà bassa della banda, e ci sta anche oggi.</p>
+    </section>`;
+}
 
 function render() {
   const base = leggiInput();
@@ -580,10 +685,11 @@ function render() {
         ${stack > 0 ? `<div class="cop">${barra(cop)}<p>i tuoi ${fmtBTC(stack)} BTC coprono il <b>${fmtPct(cop)}</b>${eta ? ` · basterebbero cominciando a <b>${eta} anni</b>` : " · non bastano nemmeno rimandando"}</p></div>` : ""}
         <p class="tenuta ${tenuta.regge ? "ok" : "ko"}">
           ${tenuta.regge
-            ? `Regge un crollo del 70% ${base.annoShock === 0 ? "appena cominci" : `${base.annoShock} anni dopo l'inizio`}: restano ${fmtBTC(tenuta.btcResidui)} BTC.`
+            ? `Regge un crollo del 70% in qualunque anno arrivi: nel caso peggiore restano ${fmtBTC(tenuta.btcResidui)} BTC.`
             : (() => {
                 const serve = capitaleAntiCrollo(base, r.btcNecessari, linea);
-                return `Un crollo del 70% ${base.annoShock === 0 ? "appena cominci" : `${base.annoShock} anni dopo l'inizio`} lo esaurisce a ${tenuta.etaRottura} anni.`
+                const quando = tenuta.annoCrollo === 0 ? "appena cominci" : `${tenuta.annoCrollo} anni dopo l'inizio`;
+                return `Il momento peggiore per un crollo del 70% è <b>${quando}</b>: ti lascerebbe a secco a ${tenuta.etaRottura} anni.`
                   + (serve ? ` Per reggerlo servirebbero <b>${fmtBTC(serve)} BTC</b> (+${((serve / r.btcNecessari - 1) * 100).toFixed(0)}%).` : "");
               })()}
         </p>
@@ -665,7 +771,7 @@ function render() {
       </p>
     </section>`;
 
-  $out.innerHTML = testa + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
+  $out.innerHTML = testa + grafico(base, cambio) + timelineBox + corridoioBox + scenariBox + fiscoBox + paesiBox + ipotesi;
 }
 
 // ------------------------------------------------------------

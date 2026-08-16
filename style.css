@@ -351,6 +351,47 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 .legenda .k { color: var(--keep); }
 .legenda .t { color: var(--tax); }
 
+/* Il grafico: il fatto (bianco, continuo) contro il modello (verde, tratteggiato).
+   Il tratteggio è il secondo segnale, così l'identità non dipende dal solo colore. */
+.gfx { margin: 1.25rem 0 0; }
+.gfx svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+.g-griglia { stroke: var(--line); stroke-width: 1; opacity: .5; }
+.g-tacca { fill: var(--faint); font-family: var(--mono); font-size: 10px; }
+.g-banda { fill: var(--keep); opacity: .12; }
+.g-centro { fill: none; stroke: var(--keep); stroke-width: 2; stroke-dasharray: 6 4; }
+.g-storico { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; }
+.g-decumulo { fill: #fff; opacity: .035; }
+.g-inizio { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.g-nota-inizio { fill: var(--muted); font-family: var(--mono); font-size: 10px; }
+.g-oggi { fill: var(--text); stroke: var(--ink); stroke-width: 2; }
+.g-punto { fill: var(--keep); }
+.g-valore { fill: var(--keep); font-family: var(--mono); font-size: 10px; }
+/* Un contorno del colore del fondo stacca le scritte dalla griglia e dalle linee. */
+.g-valore, .g-nota-oggi, .g-nota-inizio, .g-tacca {
+  paint-order: stroke;
+  stroke: var(--ink);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.g-nota-oggi { fill: var(--text); font-family: var(--mono); font-size: 11px; font-weight: 600; }
+
+.gfx figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem 1.25rem;
+  margin-top: .9rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  color: var(--faint);
+}
+.g-leg { display: inline-flex; align-items: center; gap: .45rem; }
+.g-leg i { width: 18px; height: 2px; display: inline-block; }
+.l-storico { background: var(--text); }
+.l-centro { background: repeating-linear-gradient(90deg, var(--keep) 0 6px, transparent 6px 10px); }
+.l-banda { background: var(--keep); opacity: .3; height: 10px !important; border-radius: 2px; }
+.g-scala { margin-left: auto; }
+
 /* La timeline del decumulo: cinquant'anni di righe, leggibili anche sul telefono */
 .tabellone {
   overflow-x: auto;
