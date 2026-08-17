@@ -16,7 +16,11 @@ console.log('\n--- 1. IMPOSTA ---');
 ok('Italia: aliquota piena, 33% su tutto', Math.abs(lordoPerNetto('Italia',18000,200000,true).aliquotaEff-0.33)<0.001, 'caso peggiore');
 ok('Germania oltre 12 mesi: zero', lordoPerNetto('Germania',18000,200000,true).lordo===18000);
 ok('Portogallo oltre 365 giorni: zero', lordoPerNetto('Portogallo',18000,200000,true).lordo===18000);
-ok('Spagna a scaglioni fra 10% e 27%', (e=>e>0.10&&e<0.27)(lordoPerNetto('Spagna',18000,200000,true).aliquotaEff));
+ok('Spagna a scaglioni fra 10% e 30%', (e=>e>0.10&&e<0.30)(lordoPerNetto('Spagna',18000,200000,true).aliquotaEff));
+// gli scaglioni spagnoli, calcolati a mano: 1140+9240+34500+27000+30000
+ok('Spagna: 30% oltre 300.000 (Ley 7/2024)', Math.abs(imposta('Spagna',400000,true)-101880)<1,
+   Math.round(imposta('Spagna',400000,true))+' EUR su 400.000 di plusvalenza');
+ok('Spagna: il confine dei 300.000 e esatto', Math.abs(imposta('Spagna',300000,true)-71880)<1);
 
 console.log('\n--- 2. LEGGE DI POTENZA E CORRIDOIO ---');
 const d=giorniDaGenesi();

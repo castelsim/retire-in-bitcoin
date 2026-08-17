@@ -15,7 +15,7 @@ const NOW_YEAR = new Date().getFullYear();
 const ETA_FINE_DEFAULT = 100;      // fin dove deve durare il capitale, se non lo cambi
 
 // ------------------------------------------------------------
-// FISCALITÀ — verificata ad agosto 2026, fonti in fondo alla pagina.
+// FISCALITÀ — verificata ad agosto 2026 su fonti pubbliche (vedi progress.md).
 // `esenteOltreAnno`: la plusvalenza non è tassata se la tranche venduta
 // è detenuta da più di un anno (DE §23 EStG, PT 365 giorni).
 // ------------------------------------------------------------
@@ -36,10 +36,10 @@ const FISCO = {
     nota: "PFU salito al 31,4% il 1° gennaio 2026: 12,8% di imposta più 18,6% di contributi sociali. Gli scambi cripto-cripto non sono tassati.",
   },
   Spagna: {
-    scaglioni: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [Infinity, 0.27]],
+    scaglioni: [[6000, 0.19], [50000, 0.21], [200000, 0.23], [300000, 0.27], [Infinity, 0.30]],
     esenteOltreAnno: false, bollo: 0,
-    etichetta: "19–27% a scaglioni",
-    nota: "La plusvalenza entra nella base del risparmio: 19% fino a 6.000 €, 21% fino a 50.000, 23% fino a 200.000, 27% oltre.",
+    etichetta: "19–30% a scaglioni",
+    nota: "La plusvalenza entra nella base del risparmio: 19% fino a 6.000 €, 21% fino a 50.000, 23% fino a 200.000, 27% fino a 300.000, 30% oltre (Ley 7/2024, in vigore dal 1° gennaio 2025).",
   },
   Portogallo: {
     aliquota: 0.28, esenteOltreAnno: true, bollo: 0,
@@ -73,12 +73,12 @@ const PAESI = {
 // a oggi, fonte blockchain.info). Vengono
 //
 //   n  = 5,611     esponente     (la letteratura dice 5,69 ± 0,05)
-//   A  = −16,239   coefficiente  (la letteratura dice −16,493)
+//   A  = −16,239   coefficiente  (la letteratura dice −16,509)
 //   R² = 0,9598                  (la letteratura dice 0,961)
 //
-// Santostasi non indica un prezzo: indica un CORRIDOIO. Il prezzo oscilla
-// attorno alla retta, e i residui della regressione dicono di quanto.
-// I tre scenari sono le tre linee di quel corridoio, ai percentili misurati:
+// Il CORRIDOIO invece non è suo: lui pubblica bande a ±1σ e ±2σ. Le tre
+// linee qui sono percentili dei residui della nostra regressione — una
+// scelta nostra, non un'attribuzione:
 //
 //   supporto     5° percentile   sotto ci è stato 5 giorni su 100
 //   centro      50° percentile   metà della storia sopra, metà sotto
@@ -106,8 +106,7 @@ const SCENARI = [
 let STORICO = [[605,0.07],[635,0.06],[666,0.19],[696,0.28],[727,0.3],[758,0.48],[786,0.96],[817,0.8],[847,3.05],[878,9.12],[908,17.35],[939,14.06],[970,9.11],[1000,4.94],[1031,3.59],[1061,2.98],[1092,4.47],[1123,5.61],[1152,4.98],[1183,4.86],[1213,5.01],[1244,5.18],[1274,6.67],[1305,9.22],[1336,10.91],[1366,12.49],[1397,10.92],[1427,12.61],[1458,13.57],[1489,20.11],[1517,31.27],[1548,92.5],[1578,145],[1609,129],[1639,94.99],[1670,108],[1701,125],[1731,127],[1762,206],[1792,1134],[1823,736],[1854,800],[1882,583],[1913,459],[1943,448],[1974,621],[2004,600],[2035,563],[2066,501],[2096,374],[2127,345],[2157,376],[2188,311],[2219,227],[2247,252],[2278,248],[2308,226],[2339,232],[2369,256],[2400,288],[2431,228],[2461,237],[2492,328],[2522,371],[2553,428],[2584,377],[2613,432],[2644,414],[2674,456],[2705,526],[2735,636],[2766,655],[2797,576],[2827,604],[2858,697],[2888,730],[2919,958],[2950,920],[2978,1194],[3009,1035],[3039,1333],[3070,2205],[3100,2542],[3131,2739],[3162,4583],[3192,4164],[3223,6133],[3253,9646],[3284,12613],[3315,10083],[3343,10629],[3374,6854],[3404,9398],[3435,7387],[3465,6223],[3496,8171],[3527,6987],[3557,6593],[3588,6302],[3618,4279],[3649,3865],[3680,3470],[3708,3833],[3739,4114],[3769,5261],[3800,8272],[3830,11890],[3861,9589],[3892,9578],[3922,8057],[3953,9165],[3983,7757],[4014,7220],[4045,9502],[4074,8712],[4105,6405],[4135,8778],[4166,9698],[4196,9185],[4227,11115],[4258,11708],[4288,10841],[4319,13565],[4349,18192],[4380,28857],[4411,34318],[4439,46156],[4470,58730],[4500,53584],[4531,35685],[4561,35848],[4592,42214],[4623,47075],[4653,41522],[4684,61731],[4714,57828],[4745,47133],[4776,37919],[4804,37705],[4835,47064],[4865,38596],[4896,31716],[4926,20086],[4957,23648],[4988,19793],[5018,19599],[5049,20628],[5079,16433],[5110,16600],[5141,22836],[5169,23498],[5200,28033],[5230,29245],[5261,27704],[5291,30449],[5322,29275],[5353,27301],[5383,26917],[5414,34501],[5444,37867],[5475,42148],[5506,42951],[5535,62499],[5566,69651],[5596,63833],[5627,68352],[5657,60871],[5688,66180],[5719,59108],[5749,65621],[5780,72330],[5810,97504],[5841,92653],[5872,104744],[5900,84646],[5931,82338],[5961,94275],[5992,104028],[6022,108386],[6053,117829],[6084,108791],[6114,114404],[6145,108303],[6175,90831],[6206,88424],[6237,84120],[6265,65867],[6296,66694],[6326,75782],[6357,73755],[6387,60136],[6418,64721],[6434,63024]];
 /**
  * LO SCENARIO DI RIFERIMENTO È IL PEGGIORE.
- * Tutti i numeri della pagina — quanti bitcoin servono, il primo prelievo,
- * il confronto fra paesi — escono dalla linea di SUPPORTO, il 5° percentile:
+ * Tutti i numeri della pagina escono dalla linea di SUPPORTO, il 5° percentile:
  * il fondo del corridoio. Se il prezzo farà meglio ti troverai con più di
  * quello che ti serve, che è l'errore giusto da fare.
  */
@@ -132,9 +131,9 @@ const ACCUMULO = 1;
 // IL LIMITE CHE PONE L'AUTORE STESSO
 //
 // Santostasi scrive che la legge di potenza «non andrebbe usata per fare
-// previsioni oltre il 2040». Estrapolata comunque, al 2090 darebbe 640
-// milioni di dollari per bitcoin: ventidue volte la ricchezza del pianeta,
-// una cifra che non descrive più niente.
+// previsioni oltre il 2040». Estrapolata comunque, al 2090 darebbe circa
+// 700 milioni di dollari per bitcoin: una trentina di volte la ricchezza
+// del pianeta, una cifra che non descrive più niente.
 //
 // Qui la curva segue la legge di potenza fino al 2040. Dopo, il prezzo
 // cresce solo col carovita: in potere d'acquisto resta fermo. Non è
@@ -161,10 +160,9 @@ const GIORNI_LIMITE = (Date.UTC(ANNO_LIMITE, 0, 1) - GENESI) / 86400000;
  * resta fermo. È l'ipotesi che non chiede di credere a niente — un bene
  * che ha finito di guadagnare terreno e si limita a conservare valore.
  *
- * Prima qui c'era una power law smorzata con un esponente 0,62, che dava
- * ancora l'8% reale nei primi dieci anni. Quel numero però l'avevo scelto
- * io: un parametro arbitrario travestito da modello. Una crescita reale
- * dichiarata si legge, si discute e si cambia.
+ * Prima qui c'era una power law smorzata con un esponente scelto a mano,
+ * che dava ancora l'8% reale nei primi dieci anni: un parametro arbitrario
+ * travestito da modello. Una crescita reale dichiarata si legge e si cambia.
  */
 const CRESCITA_REALE_DOPO = 0.00;
 const INFLAZIONE_LUNGA = 0.02;   // il carovita che si assume oltre l'orizzonte del modello
@@ -278,7 +276,7 @@ function lordoPerNetto(paese, netto, prezzo, oltreUnAnno) {
  * anno si vende quanto serve per avere in mano l'importo netto, rivalutato
  * all'inflazione, al prezzo che la linea del corridoio dà per quell'anno.
  *
- * Restituisce la tabella completa: è quella che spiega il numero.
+ * Restituisce anche la tabella anno per anno: non è mostrata, ma serve ai test.
  */
 function simula(p, linea, btc0) {
   const infl = PAESI[p.paese].infl;
@@ -637,7 +635,7 @@ function leggiInput() {
     nettoAnnuo: Math.min(parseFloat($netto.value || "0") || 0, 1e9),
     prezzoOggi: parseFloat($prezzo.value),
     // Chi accumula e vende dopo anni ha per forza lotti vecchi: si assume,
-    // e lo si scrive fra le ipotesi.
+    // e lo si dichiara qui.
     oltreUnAnno: true,
     // Il corridoio è in dollari: serve il cambio per portarlo nella valuta locale.
     cambioUsd: prezziLive.usd ? parseFloat($prezzo.value) / prezziLive.usd : null,
@@ -848,7 +846,7 @@ function render() {
         </div>
       </div>
       <p class="nota">${!prezziLive.usd ? `<b>Cambio non disponibile</b>: si assume ${fmtPct(CAMBIO_RIPIEGO - 1).replace("−", "")} — cioè ${CAMBIO_RIPIEGO.toString().replace(".", ",")} euro per dollaro, il valore del 17 agosto 2026. ` : ""}${r.attesa > 0
-        ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE ? ` Dal <b>${ANNO_LIMITE}</b> in poi Santostasi dice di non usare la legge di potenza: da lì il prezzo cresce solo col carovita, quindi rimandare l'inizio non fa più risparmiare bitcoin.` : ""}`
+        ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE ? ` Dal <b>${ANNO_LIMITE}</b> in poi Santostasi dice di non usare la legge di potenza: da lì il prezzo cresce solo col carovita, quindi ogni anno di prelievo costa sempre la stessa quantità di bitcoin: il totale scende solo perché gli anni da coprire sono meno.` : ""}`
         : `Le tre linee sono i prezzi di oggi. Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta di regressione, nella parte bassa della fascia.`}</p>
     </div>`;
   }
