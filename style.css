@@ -390,6 +390,17 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 }
 .verdetto .sotto b { color: var(--keep); }
 .prudente { color: var(--muted); font-style: italic; }
+/* La domanda inversa: cosa ottieni con quello che puoi davvero versare. */
+.inversa {
+  margin: .8rem 0 0;
+  padding-top: .7rem;
+  border-top: 1px solid var(--line);
+  font-size: .8rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.inversa b { color: var(--tax); font-family: var(--mono); }
+.inversa.basta b { color: var(--keep); }
 
 .blocco { padding: 2.75rem 0; border-bottom: 1px solid var(--line); }
 .blocco:last-child { border-bottom: 0; }
@@ -476,6 +487,17 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
    dove sta il prezzo fra il fondo e il tetto. */
 .corridoio-testa { margin: .9rem 0 0; }
 .corridoio-testa .nota { margin-top: .9rem; }
+/* Le tre leve: quanto il numero dipende da scelte e non da fatti. */
+.leve {
+  margin: .9rem 0 0;
+  padding-top: .8rem;
+  border-top: 1px solid var(--line);
+  font-size: .8rem;
+  color: var(--faint);
+  line-height: 1.9;
+}
+.leve span { white-space: nowrap; }
+.leve b { color: var(--tax); font-family: var(--mono); }
 
 /* Il corridoio: dove sta il prezzo fra il fondo e il tetto della fascia */
 .corridoio { margin: 1.5rem 0 0; }

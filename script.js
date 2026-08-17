@@ -12,7 +12,7 @@
 // ============================================================
 
 const NOW_YEAR = new Date().getFullYear();
-const ETA_MAX = 100;               // fin dove deve durare il capitale
+const ETA_FINE_DEFAULT = 100;      // fin dove deve durare il capitale, se non lo cambi
 
 // ------------------------------------------------------------
 // FISCALITÀ — verificata ad agosto 2026, fonti in fondo alla pagina.
@@ -273,7 +273,7 @@ function simula(p, linea, btc0) {
   const infl = PAESI[p.paese].infl;
   const bollo = FISCO[p.paese].bollo || 0;
   const attesa = Math.max(0, p.etaInizio - p.eta);
-  const anni = Math.max(0, ETA_MAX - p.etaInizio);
+  const anni = Math.max(0, p.etaFine - p.etaInizio);
 
   let btc = btc0;
   // Gli anni di attesa: nessuna vendita, ma il bollo si paga lo stesso.
@@ -308,7 +308,7 @@ function simula(p, linea, btc0) {
  */
 function fabbisognoLiscio(p, linea) {
   const attesa = Math.max(0, p.etaInizio - p.eta);
-  const anni = Math.max(0, ETA_MAX - p.etaInizio);
+  const anni = Math.max(0, p.etaFine - p.etaInizio);
   const prezzoInizio = linea(attesa);
   const nettoInizio = p.nettoAnnuo * Math.pow(1 + PAESI[p.paese].infl, attesa);
   const { lordo, aliquotaEff } = lordoPerNetto(p.paese, nettoInizio, prezzoInizio, p.oltreUnAnno);
@@ -381,6 +381,26 @@ function fabbisogno(p, linea) {
   return { ...base, btcNecessari: conCrollo || base.btcNecessari * 3, btcLiscio: base.btcNecessari };
 }
 
+/**
+ * LA DOMANDA INVERSA: verso quello che posso, cosa ottengo?
+ *
+ * Il tool risponde «servono 2.166 € al mese», cifra che quasi nessuno può
+ * versare. Girata al contrario diventa utile: dato quanto riesci a mettere,
+ * quale integrazione netta ne esce. Bisezione sull'importo annuo, perché la
+ * relazione è monotona (chiedere più soldi richiede sempre più versamento).
+ */
+function integrazioneOttenibile(p, lineaObiettivo, lineaAcquisto, stack, mensileDisponibile) {
+  if (!(mensileDisponibile > 0)) return 0;
+  let lo = 0, hi = 1e6;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    const q = { ...p, nettoAnnuo: mid };
+    const pa = pianoDiAccumulo(q, lineaObiettivo, lineaAcquisto, stack);
+    if (!pa || pa.mensile <= mensileDisponibile) lo = mid; else hi = mid;
+  }
+  return lo;
+}
+
 /** La linea del corridoio di uno scenario, portata nella valuta locale. */
 function lineaDi(p, sc) {
   const d0 = giorniDaGenesi();
@@ -408,7 +428,7 @@ function crolloDaAnno(p, linea, quando) {
 }
 
 function testTenuta(p, btcIniziali, linea) {
-  const anni = Math.max(1, ETA_MAX - p.etaInizio);
+  const anni = Math.max(1, p.etaFine - p.etaInizio);
   let peggiore = null;
   for (let quando = 0; quando < anni; quando++) {
     const sim = simula(p, crolloDaAnno(p, linea, quando), btcIniziali);
@@ -441,7 +461,7 @@ function capitaleAntiCrollo(p, btcBase, linea) {
 /** La prima età di inizio in cui i bitcoin che hai già basterebbero. */
 function primaEtaSufficiente(p, stack, sc) {
   if (!stack || stack <= 0) return null;
-  for (let eta = Math.max(p.eta, p.etaInizio); eta <= ETA_MAX - 1; eta++) {
+  for (let eta = Math.max(p.eta, p.etaInizio); eta <= p.etaFine - 1; eta++) {
     const q = { ...p, etaInizio: eta };
     if (stack >= fabbisogno(q, lineaDi(q, sc)).btcNecessari) return eta;
   }
@@ -523,7 +543,7 @@ function applicaPrezzoLive() {
 // mentre scrivi: niente pulsante fra la domanda e la risposta.
 // ------------------------------------------------------------
 const $ = id => document.getElementById(id);
-const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
+const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto"), $etaFine = $("etaFine"), $disponibile = $("disponibile");
 const $prezzo = $("prezzoOggi"), $stack = $("stack");
 const $grafico = $("grafico"), $corridoio = $("corridoio");
 
@@ -581,7 +601,9 @@ function leggiInput() {
     paese: $paese.value,
     eta,
     // Non si può cominciare a prelevare prima di adesso, né dopo i 99.
-    etaInizio: clamp(parseInt($etaInizio.value, 10) || eta, eta, ETA_MAX - 1),
+    etaFine: clamp(parseInt($etaFine.value, 10) || ETA_FINE_DEFAULT, eta + 1, 120),
+    etaInizio: clamp(parseInt($etaInizio.value, 10) || eta, eta,
+                     clamp(parseInt($etaFine.value, 10) || ETA_FINE_DEFAULT, eta + 1, 120) - 1),
     nettoAnnuo: parseFloat($netto.value || "0"),
     prezzoOggi: parseFloat($prezzo.value),
     // Chi accumula e vende dopo anni ha per forza lotti vecchi: si assume,
@@ -589,6 +611,7 @@ function leggiInput() {
     oltreUnAnno: true,
     // Il corridoio è in dollari: serve il cambio per portarlo nella valuta locale.
     cambioUsd: prezziLive.usd ? parseFloat($prezzo.value) / prezziLive.usd : null,
+    disponibile: parseFloat($disponibile.value || "0"),
   };
 }
 
@@ -609,7 +632,7 @@ const barra = f => `<div class="bar"><span style="width:${clamp(f * 100, 0, 100)
 // ------------------------------------------------------------
 function grafico(base, cambio) {
   const W = 1100, H = 400, ML = 64, MR = 18, MT = 18, MB = 34;
-  const annoFine = NOW_YEAR + (ETA_MAX - base.eta);
+  const annoFine = NOW_YEAR + (base.etaFine - base.eta);
   const annoDa = 2011;
   const px = a => ML + (a - annoDa) / (annoFine - annoDa) * (W - ML - MR);
   const minP = 0.05, maxP = lineaCorridoio(giorniDaGenesi() + (annoFine - NOW_YEAR) * 365.25, SCENARI[2].perc);
@@ -730,7 +753,7 @@ function render() {
     return errore("Manca il prezzo di Bitcoin. Premi ↻ per rileggerlo, oppure scrivilo a mano.");
   }
 
-  const RIF = SCENARI[RIFERIMENTO];
+  const RIF = SCENARI[RIFERIMENTO], CEN = SCENARI[1];
   const r = fabbisogno(base, lineaDi(base, RIF));
   const pa = pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, SCENARI[ACCUMULO]), stack);
   const cambio = base.cambioUsd || 1;
@@ -752,6 +775,17 @@ function render() {
            <p class="sotto">i tuoi ${fmtBTC(stack)} BTC superano l'obiettivo di ${fmtBTC(r.btcNecessari)}</p>`
         : `<p class="cifra">${c.sym} ${fmt(pa.mensile)}<span class="unita">al mese</span></p>
            <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(r.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}<br /><span class="prudente">obiettivo sul fondo del corridoio, acquisti alla mediana</span></p>`}
+      ${(() => {
+        // La domanda inversa: se hai detto quanto puoi versare, si dice cosa ne esce.
+        if (!(base.disponibile > 0) || !pa || pa.giaCoperto) return "";
+        const ott = integrazioneOttenibile(base, lineaDi(base, RIF), lineaDi(base, SCENARI[ACCUMULO]), stack, base.disponibile);
+        const basta = base.disponibile >= pa.mensile;
+        return `<p class="inversa ${basta ? "basta" : ""}">
+          Con <b>${c.sym} ${fmt(base.disponibile)}</b> al mese ${basta
+            ? `ci arrivi, e ti avanza: prenderesti <b>${c.sym} ${fmt(ott)}</b> netti l'anno invece di ${c.sym} ${fmt(base.nettoAnnuo)}.`
+            : `arrivi a <b>${c.sym} ${fmt(ott)}</b> netti l'anno, non ${c.sym} ${fmt(base.nettoAnnuo)}.`}
+        </p>`;
+      })()}
     </div>`;
 
   // — Dove sta il prezzo, adesso: la fascia sotto il grafico
@@ -779,8 +813,24 @@ function render() {
     </div>`;
   }
 
+  // — Quali ipotesi spostano il numero, e di quanto: si vede che il
+  //   risultato dipende da scelte, non da fatti.
+  const senzaCrollo = fabbisognoLiscio(base, lineaDi(base, RIF)).btcNecessari;
+  const suMediana = fabbisogno(base, lineaDi(base, CEN)).btcNecessari;
+  const rif = r.btcNecessari;
+  const leve = [
+    ["sulla mediana invece che sul fondo", suMediana / rif - 1],
+    ["senza tenere il crollo del 70%", senzaCrollo / rif - 1],
+    [`fino a ${Math.min(90, base.etaFine - 5)} anni invece di ${base.etaFine}`,
+      fabbisogno({ ...base, etaFine: Math.min(90, base.etaFine - 5) }, lineaDi(base, RIF)).btcNecessari / rif - 1],
+  ];
+  const leveBox = `
+    <p class="leve">Il numero dipende da tre scelte, non da fatti: ${leve
+      .map(([n, d]) => `<span>${n} <b>${d < 0 ? "−" : "+"}${Math.abs(d * 100).toFixed(0)}%</b></span>`)
+      .join(" · ")}</p>`;
+
   $grafico.innerHTML = grafico(base, cambio) + `<div id="verdetto">${testa}</div>`;
-  $corridoio.innerHTML = corridoioBox;
+  $corridoio.innerHTML = corridoioBox + leveBox;
 }
 
 
@@ -802,7 +852,7 @@ function annoDallaX(svg, clientX) {
 function trascina(svg, clientX) {
   const eta = clamp(
     parseInt($eta.value, 10) + (annoDallaX(svg, clientX) - NOW_YEAR),
-    parseInt($eta.value, 10), ETA_MAX - 1);
+    parseInt($eta.value, 10), (parseInt($etaFine.value, 10) || ETA_FINE_DEFAULT) - 1);
   if (String(eta) !== $etaInizio.value) {
     $etaInizio.value = eta;
     adattaLarghezza($etaInizio);
@@ -849,12 +899,21 @@ $("planner").addEventListener("input", e => {
   if (e.target.classList.contains("inline")) adattaLarghezza(e.target);
   ridisegna();
 });
+$("planner").addEventListener("input", scriviIndirizzo);
+$("planner").addEventListener("change", scriviIndirizzo);
 $("planner").addEventListener("change", e => {
   if (e.target.tagName === "SELECT") adattaLarghezza(e.target);
   ridisegna();
 });
 
 $paese.addEventListener("change", aggiornaValuta);
+$etaFine.addEventListener("change", () => {
+  // Non si prelevano soldi dopo la fine.
+  if (parseInt($etaInizio.value, 10) >= parseInt($etaFine.value, 10)) {
+    $etaInizio.value = String(parseInt($etaFine.value, 10) - 1);
+    adattaLarghezza($etaInizio);
+  }
+});
 $eta.addEventListener("change", () => {
   // Non si comincia a prelevare prima di adesso.
   if (parseInt($etaInizio.value, 10) < parseInt($eta.value, 10)) {
@@ -866,8 +925,41 @@ $prezzo.addEventListener("input", () => { prezzoManuale = true; });
 $("badgePrezzo").addEventListener("click", () => caricaPrezzo(true).then(render));
 
 // ------------------------------------------------------------
+// Lo stato sta nell'indirizzo: ricaricando la pagina i dati restano, e il
+// link si può salvare o mandare a qualcuno. Niente cookie, niente server.
+// ------------------------------------------------------------
+const CAMPI_URL = { e: "eta", p: "paese", n: "netto", i: "etaInizio", f: "etaFine", b: "stack", d: "disponibile" };
+
+function leggiIndirizzo() {
+  const q = new URLSearchParams(location.search);
+  let trovato = false;
+  for (const [chiave, id] of Object.entries(CAMPI_URL)) {
+    const v = q.get(chiave);
+    const el = $(id);
+    if (v !== null && el) { el.value = v; trovato = true; }
+  }
+  return trovato;
+}
+
+let scritturaIndirizzo = null;
+function scriviIndirizzo() {
+  clearTimeout(scritturaIndirizzo);
+  scritturaIndirizzo = setTimeout(() => {
+    const q = new URLSearchParams();
+    for (const [chiave, id] of Object.entries(CAMPI_URL)) {
+      const el = $(id);
+      if (el && el.value !== "") q.set(chiave, el.value);
+    }
+    // replaceState e non pushState: non si riempie la cronologia a ogni tasto.
+    history.replaceState(null, "", location.pathname + "?" + q.toString());
+  }, 400);
+}
+
+// ------------------------------------------------------------
 // Avvio: la pagina apre già con una risposta, non con un modulo vuoto
 // ------------------------------------------------------------
+const daIndirizzo = leggiIndirizzo();
 aggiornaValuta();
+if (daIndirizzo) prezzoManuale = !!new URLSearchParams(location.search).get("pr");
 caricaPrezzo().then(render);
 aggiornaCodaStorica().then(render);

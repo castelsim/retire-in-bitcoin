@@ -3,11 +3,11 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_MAX,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
-const base={paese:'Italia',eta:35,etaInizio:50,nettoAnnuo:10000,prezzoOggi:54400,
+const base={paese:'Italia',eta:35,etaInizio:50,etaFine:100,nettoAnnuo:10000,prezzoOggi:54400,
  oltreUnAnno:true,cambioUsd:54400/63000};
 const [SUP,CEN,RES]=SCENARI;
 const fab=(o,sc)=>fabbisogno(o,lineaDi(o,sc)).btcNecessari;
@@ -27,10 +27,10 @@ ok('oggi siamo nella meta bassa del corridoio', posizioneNelCorridoio(63000).fra
 
 console.log('\n--- 3. IL DECUMULO PROGRAMMATO ---');
 const r=fabbisogno(base,lineaDi(base,CEN));
-console.log('     servono oggi '+r.btcNecessari.toFixed(6)+' BTC · '+r.righe.length+' prelievi dai '+base.etaInizio+' ai '+ETA_MAX);
-ok('la tabella copre esattamente gli anni dal via ai 100', r.righe.length===ETA_MAX-base.etaInizio, r.righe.length+' righe');
+console.log('     servono oggi '+r.btcNecessari.toFixed(6)+' BTC · '+r.righe.length+' prelievi dai '+base.etaInizio+' ai '+100);
+ok('la tabella copre esattamente gli anni dal via ai 100', r.righe.length===100-base.etaInizio, r.righe.length+' righe');
 ok('la prima riga e all eta di inizio', r.righe[0].eta===base.etaInizio);
-ok('l ultima riga e a 99 anni compiuti', r.righe[r.righe.length-1].eta===ETA_MAX-1);
+ok('l ultima riga e a 99 anni compiuti', r.righe[r.righe.length-1].eta===100-1);
 ok('il patrimonio si esaurisce alla fine (decumulo, non rendita)', r.righe[r.righe.length-1].residui<r.btcNecessari*0.02,
    'residui finali '+r.righe[r.righe.length-1].residui.toFixed(8)+' BTC');
 ok('i BTC residui scendono sempre', r.righe.every((x,i,a)=>i===0||x.residui<=a[i-1].residui));
