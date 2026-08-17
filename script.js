@@ -239,9 +239,24 @@ function imposta(paese, plusvalenza, oltreUnAnno) {
  * Con gli scaglioni spagnoli serve un punto fisso: poche passate bastano.
  */
 function lordoPerNetto(paese, netto, prezzo, oltreUnAnno) {
-  let lordo = netto;
-  for (let i = 0; i < 6; i++) lordo = netto + imposta(paese, lordo, oltreUnAnno);
-  return { lordo, aliquotaEff: 1 - netto / lordo };
+  const f = FISCO[paese];
+  if (f.esenteOltreAnno && oltreUnAnno) return { lordo: netto, aliquotaEff: 0 };
+
+  // Aliquota piatta: la formula è esatta, lordo = netto / (1 − aliquota).
+  // Prima qui c'erano sei giri di punto fisso, che si fermavano allo 0,04%
+  // di distanza dal valore vero: piccolo, ma sbagliato per niente.
+  if (!f.scaglioni) {
+    const lordo = netto / (1 - f.aliquota);
+    return { lordo, aliquotaEff: f.aliquota };
+  }
+
+  // A scaglioni non c'è formula chiusa: bisezione, che converge davvero.
+  let lo = netto, hi = netto * 3;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (mid - imposta(paese, mid, oltreUnAnno) < netto) lo = mid; else hi = mid;
+  }
+  return { lordo: hi, aliquotaEff: 1 - netto / hi };
 }
 
 /**
@@ -322,19 +337,28 @@ function pianoDiAccumulo(p, lineaObiettivo, lineaAcquisto, stack) {
   const mesi = Math.max(0, Math.round((p.etaInizio - p.eta) * 12));
   if (mesi === 0) return null;
 
-  // Quanti bitcoin compra un euro al mese, ai prezzi della linea d'acquisto.
+  // Il conto si fa alla data del primo prelievo, non a oggi: i bitcoin
+  // comprati fra dieci anni pagano dieci anni di bollo in meno di quelli
+  // comprati domani, e ignorarlo sovrastimava il versamento.
+  const bollo = FISCO[p.paese].bollo || 0;
+  const anniAttesa = mesi / 12;
   let btcPerEuroMensile = 0;
-  for (let m = 0; m < mesi; m++) btcPerEuroMensile += 1 / lineaAcquisto(m / 12);
+  for (let m = 0; m < mesi; m++) {
+    const erosione = Math.pow(1 - bollo, (mesi - m) / 12);   // dall'acquisto al via
+    btcPerEuroMensile += erosione / lineaAcquisto(m / 12);
+  }
 
-  // L'obiettivo invece esce dalla linea del decumulo, che è più bassa.
+  // L'obiettivo esce dalla linea del decumulo, più bassa, ed è riferito a
+  // oggi: al via sarà già eroso dal bollo, come lo sarà quello che hai già.
   const obiettivo = fabbisogno(p, lineaObiettivo).btcNecessari;
-  const mancano = Math.max(0, obiettivo - stack);
+  const alVia = Math.pow(1 - bollo, anniAttesa);
+  const mancano = Math.max(0, (obiettivo - stack) * alVia);
   const mensile = mancano / btcPerEuroMensile;
   return {
-    mensile, mesi, anni: mesi / 12,
+    mensile, mesi, anni: anniAttesa,
     totale: mensile * mesi,
     btcObiettivo: obiettivo,
-    btcDaComprare: mancano,
+    btcDaComprare: mancano / alVia,   // riportati a oggi, per leggibilità
     giaCoperto: mancano === 0,
   };
 }

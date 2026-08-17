@@ -65,6 +65,16 @@ console.log('     da zero: '+Math.round(pa.mensile)+' EUR/mese per '+pa.anni+' a
 ok('il versamento e positivo e finito', pa.mensile>0 && isFinite(pa.mensile));
 ok('i mesi sono quelli fra oggi e il primo prelievo', pa.mesi===(base.etaInizio-base.eta)*12);
 ok('il totale e mensile x mesi', Math.abs(pa.totale-pa.mensile*pa.mesi)<1);
+// il lordo deve essere esatto, non approssimato da un punto fisso a metà strada
+for (const p of ['Italia','Francia','Polonia','Spagna']) {
+  const r=lordoPerNetto(p,13459,3e6,true);
+  ok('imposta esatta in '+p, Math.abs((r.lordo-imposta(p,r.lordo,true))-13459)<0.01);
+}
+// e il bollo sui BTC accumulati deve essere contato
+const paB=pianoDiAccumulo(base,L0,L0,0), bollo=FISCO.Italia.bollo, m2=paB.mesi;
+let alVia=0; for(let m=0;m<m2;m++) alVia+=(paB.mensile/L0(m/12))*Math.pow(1-bollo,(m2-m)/12);
+ok('il bollo sugli acquisti e contato',
+   Math.abs(alVia-paB.btcObiettivo*Math.pow(1-bollo,m2/12))<1e-7);
 ok('con piu tempo si versa meno al mese',
    pianoDiAccumulo({...base,etaInizio:65},lineaDi({...base,etaInizio:65},CEN),lineaDi({...base,etaInizio:65},CEN),0).mensile < pa.mensile);
 ok('chiedendo il doppio si versa circa il doppio',
