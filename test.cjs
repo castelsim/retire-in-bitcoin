@@ -45,7 +45,13 @@ console.log('\n--- 4. COME REAGISCE ---');
 ok('chiedere il doppio costa circa il doppio', Math.abs(fab({...base,nettoAnnuo:20000},CEN)/r.btcNecessari-2)<0.1);
 ok('cominciare piu tardi costa meno', fab({...base,etaInizio:65},CEN)<r.btcNecessari);
 ok('cominciare subito costa molto di piu', fab({...base,etaInizio:35},CEN)>r.btcNecessari*3);
-ok('essere piu giovani (piu attesa) costa meno', fab({...base,eta:25},CEN)<r.btcNecessari);
+// Con crescita reale zero dopo il 2040 il prezzo tiene solo il passo del
+// carovita: rimandare l'inizio oltre quella data non fa piu risparmiare BTC.
+// Ha effetto solo la durata del decumulo, non la data.
+const a2051=fab({...base,eta:25},CEN), a2041=fab({...base,eta:35},CEN);
+ok('dopo il 2040 rimandare non aiuta piu (crescita reale zero)',
+   Math.abs(a2051/a2041-1)<0.05, 'scarto '+((a2051/a2041-1)*100).toFixed(1)+'%');
+ok('ma cominciare prima del 2040 costa di piu', fab({...base,eta:45},CEN)>a2041);
 ok('la linea alta chiede meno della bassa', fab(base,RES)<fab(base,CEN) && fab(base,CEN)<fab(base,SUP));
 ok('Italia costa piu della Germania', r.btcNecessari>fab({...base,paese:'Germania'},CEN));
 

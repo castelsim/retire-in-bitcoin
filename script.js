@@ -136,11 +136,9 @@ const ACCUMULO = 1;
 // milioni di dollari per bitcoin: ventidue volte la ricchezza del pianeta,
 // una cifra che non descrive più niente.
 //
-// Qui la curva segue la legge di potenza fino al 2040. Dopo, la crescita
-// continua al ritmo che la curva ha proprio in quell'anno e poi decade
-// come farebbe la power law (n/t), senza riaccelerare: il prezzo sale
-// ancora, ma smette di essere una previsione del modello e diventa
-// un'estrapolazione dichiarata.
+// Qui la curva segue la legge di potenza fino al 2040. Dopo, il prezzo
+// cresce solo col carovita: in potere d'acquisto resta fermo. Non è
+// pessimismo, è smettere di prevedere dove l'autore stesso smette.
 // ------------------------------------------------------------
 const ANNO_LIMITE = 2040;
 
@@ -156,30 +154,26 @@ const GIORNI_LIMITE = (Date.UTC(ANNO_LIMITE, 0, 1) - GENESI) / 86400000;
  * La retta usata dai conti: legge di potenza fino al 2040, poi la stessa
  * pendenza che aveva lì, in decadimento. Non riaccelera mai.
  */
-// Il secondo vincolo: bitcoin non può valere più di una quota della
-// ricchezza del mondo. Ricchezza netta globale ~620.000 miliardi di
-// dollari (McKinsey/UBS 2026), che cresce del 5% l'anno; il tetto è il
-// 15% — tre volte la quota che ha l'oro oggi (~5%).
-const RICCHEZZA_2026 = 620e12, CRESCITA_RICCHEZZA = 0.05, QUOTA_MAX = 0.15, BTC_TOTALI = 21e6;
-const tettoRicchezza = anniDaOggi =>
-  RICCHEZZA_2026 * Math.pow(1 + CRESCITA_RICCHEZZA, anniDaOggi) * QUOTA_MAX / BTC_TOTALI;
-
 /**
- * La retta usata dai conti: legge di potenza fino al 2040, poi la stessa
- * pendenza che aveva lì, in decadimento, e comunque mai sopra la quota
- * di ricchezza mondiale. Non riaccelera mai.
+ * DOPO IL 2040: CRESCITA REALE ZERO.
+ *
+ * Il prezzo continua a salire col carovita e basta: in potere d'acquisto
+ * resta fermo. È l'ipotesi che non chiede di credere a niente — un bene
+ * che ha finito di guadagnare terreno e si limita a conservare valore.
+ *
+ * Prima qui c'era una power law smorzata con un esponente 0,62, che dava
+ * ancora l'8% reale nei primi dieci anni. Quel numero però l'avevo scelto
+ * io: un parametro arbitrario travestito da modello. Una crescita reale
+ * dichiarata si legge, si discute e si cambia.
  */
+const CRESCITA_REALE_DOPO = 0.00;
+const INFLAZIONE_LUNGA = 0.02;   // il carovita che si assume oltre l'orizzonte del modello
+
 function rettaPowerLaw(giorni) {
-  const anniDaOggi = (giorni - giorniDaGenesi()) / 365.25;
-  const tetto = tettoRicchezza(Math.max(0, anniDaOggi));
-  if (giorni <= GIORNI_LIMITE) return Math.min(rettaPura(giorni), tetto);
-  // Oltre il 2040 si prosegue con la pendenza di quell'anno, che continua
-  // a smorzarsi come n/t: l'esponente ridotto tiene conto del fatto che
-  // l'autore stesso non garantisce il modello così avanti.
-  const t0 = GIORNI_LIMITE / 365.25;
-  const t = giorni / 365.25;
-  const esteso = rettaPura(GIORNI_LIMITE) * Math.pow(t / t0, PL_N * 0.62);
-  return Math.min(esteso, tetto);
+  if (giorni <= GIORNI_LIMITE) return rettaPura(giorni);
+  const anni = (giorni - GIORNI_LIMITE) / 365.25;
+  const nominale = (1 + CRESCITA_REALE_DOPO) * (1 + INFLAZIONE_LUNGA) - 1;
+  return rettaPura(GIORNI_LIMITE) * Math.pow(1 + nominale, anni);
 }
 
 /** Una linea del corridoio, in dollari: la retta per il suo scarto. */
@@ -637,11 +631,11 @@ function grafico(base, cambio) {
             const xl = px(ANNO_LIMITE);
             return xl > ML && xl < W - MR
               ? `<line x1="${xl.toFixed(1)}" y1="${MT}" x2="${xl.toFixed(1)}" y2="${H - MB}" class="g-limite" />
-                 <text x="${(xl + 5).toFixed(1)}" y="${H - MB - 6}" class="g-nota-limite">oltre il ${ANNO_LIMITE} Santostasi dice di non usarlo</text>`
+                 <text x="${(xl + 5).toFixed(1)}" y="${H - MB - 6}" class="g-nota-limite">dal ${ANNO_LIMITE} il modello scade: da qui solo carovita</text>`
               : "";
           })()}
           <line x1="${inizioX.toFixed(1)}" y1="${MT}" x2="${inizioX.toFixed(1)}" y2="${H - MB}" class="g-inizio" />
-          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 12}" class="g-nota-inizio">vendi dal ${NOW_YEAR + (base.etaInizio - base.eta)} · ${base.etaInizio} anni ⇄</text>
+          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 10}" class="g-nota-inizio">vendi dal ${NOW_YEAR + (base.etaInizio - base.eta)} · ${base.etaInizio} anni ⇄</text>
           <rect class="g-presa" x="${(inizioX - 11).toFixed(1)}" y="${MT}" width="22" height="${H - MT - MB}" />
           <g class="g-maniglia" transform="translate(${inizioX.toFixed(1)},${H - MB})">
             <circle r="7" /><path d="M-3.5 -3 L-6 0 L-3.5 3 M3.5 -3 L6 0 L3.5 3" />
@@ -654,7 +648,7 @@ function grafico(base, cambio) {
             const breve = v => v >= 1e6 ? (v / 1e6).toFixed(1).replace(".", ",") + " mln" : fmt(v);
             return SCENARI.map((sc, i) => {
               const v = lineaCorridoio(g, sc.perc) * cambio;
-              const y = py(v) + (i === 0 ? 13 : i === 2 ? -6 : 4);
+              const y = py(v) + (i === 0 ? 14 : i === 2 ? -7 : 4);
               // A destra della riga: è lì che guardi mentre la trascini verso il futuro.
               return `<circle cx="${inizioX.toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.5" class="g-punto" />
                       <text x="${(inizioX + 10).toFixed(1)}" y="${y.toFixed(1)}" class="g-valore">${sym} ${breve(v)}</text>`;
@@ -740,7 +734,7 @@ function render() {
         </div>
       </div>
       <p class="nota">${r.attesa > 0
-        ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE + 5 ? ` <b>Attenzione</b>: Santostasi dice di non usare la legge di potenza oltre il ${ANNO_LIMITE}, quindi da lì in poi la curva è una prosecuzione prudente, non una sua previsione.` : ""}`
+        ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE ? ` Dal <b>${ANNO_LIMITE}</b> in poi Santostasi dice di non usare la legge di potenza: da lì il prezzo cresce solo col carovita, quindi rimandare l'inizio non fa più risparmiare bitcoin.` : ""}`
         : `Le tre linee sono i prezzi di oggi. Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta di regressione, nella parte bassa della fascia.`}</p>
     </div>`;
   }
