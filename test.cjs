@@ -31,8 +31,14 @@ console.log('     servono oggi '+r.btcNecessari.toFixed(6)+' BTC · '+r.righe.le
 ok('la tabella copre esattamente gli anni dal via ai 100', r.righe.length===100-base.etaInizio, r.righe.length+' righe');
 ok('la prima riga e all eta di inizio', r.righe[0].eta===base.etaInizio);
 ok('l ultima riga e a 99 anni compiuti', r.righe[r.righe.length-1].eta===100-1);
-ok('il patrimonio si esaurisce alla fine (decumulo, non rendita)', r.righe[r.righe.length-1].residui<r.btcNecessari*0.02,
-   'residui finali '+r.righe[r.righe.length-1].residui.toFixed(8)+' BTC');
+// Il capitale pubblicato regge il crollo, quindi su un percorso liscio AVANZA:
+// è il MINIMO liscio che deve azzerarsi. Sono due cose diverse.
+const rl=fabbisognoLiscio(base,lineaDi(base,CEN));
+ok('il minimo liscio si esaurisce alla fine (decumulo, non rendita)',
+   rl.righe[rl.righe.length-1].residui<rl.btcNecessari*0.01,
+   'residui finali '+rl.righe[rl.righe.length-1].residui.toFixed(9)+' BTC');
+ok('il capitale pubblicato invece avanza su un percorso liscio',
+   r.righe[r.righe.length-1].residui>0);
 ok('i BTC residui scendono sempre', r.righe.every((x,i,a)=>i===0||x.residui<=a[i-1].residui));
 ok('il netto cresce con l inflazione', r.righe[10].netto>r.righe[0].netto);
 ok('il netto del primo anno e il richiesto rivalutato',
@@ -115,7 +121,24 @@ ok('il minimo liscio invece NON regge', !testTenuta(base,liscio,L).regge);
 ok('un filo meno del numero prudente non regge',
    !testTenuta(base,r.btcNecessari*0.92,L).regge, 'il margine e stretto, non generoso');
 
-console.log('\n--- 7. I SEI PAESI ---');
+console.log('\n--- 7. CASI CHE FACEVANO CADERE LA PAGINA ---');
+// orizzonte piu corto di sei anni: la 'leva' costruiva un decumulo di zero anni
+for (const [e,i,f] of [[35,50,55],[35,92,100],[18,18,19],[60,76,80]]) {
+  const q={...base,eta:e,etaInizio:i,etaFine:f};
+  let ok1=true;
+  try { const leva={...q,etaFine:Math.min(90,q.etaFine-5)};
+        if (leva.etaFine>leva.etaInizio) fabbisogno(leva,lineaDi(leva,CEN)); else fabbisogno(q,lineaDi(q,CEN)); }
+  catch(err){ ok1=false; }
+  ok('eta '+e+', dai '+i+' ai '+f+': nessun crash', ok1);
+}
+ok('testTenuta regge zero anni di prelievo',
+   (()=>{ try{ const q={...base,etaInizio:95,etaFine:90}; return testTenuta(q,1,lineaDi(q,CEN)).regge===true; }catch(e){ return false; } })());
+// senza cambio il corridoio non deve essere letto come se fosse in euro
+const conCambio=fab(base,CEN), senza=fab({...base,cambioUsd:null},CEN);
+ok('senza cambio non si usa 1 in silenzio', Math.abs(senza/conCambio-1)<0.05,
+   'scarto '+((senza/conCambio-1)*100).toFixed(1)+'% (con 1 sarebbe -14%)');
+
+console.log('\n--- 8. I SEI PAESI ---');
 const tab=Object.keys(PAESI).map(n=>({n,v:fab({...base,paese:n},CEN)})).sort((a,b)=>a.v-b.v);
 tab.forEach(x=>console.log('     '+x.n.padEnd(11)+x.v.toFixed(6)+' BTC'));
 ok('nessuno fuori scala', tab[5].v/tab[0].v<2, 'rapporto '+(tab[5].v/tab[0].v).toFixed(2));

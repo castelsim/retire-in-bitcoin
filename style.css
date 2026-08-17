@@ -12,7 +12,8 @@
   --line:   #24334F;
   --text:   #E8EEF9;
   --muted:  #8698B7;
-  --faint:  #5A6C8C;
+  --faint:  #7C8DAD;   /* 5,7:1 sul fondo: era #5A6C8C, 3,6:1, sotto soglia */
+  --tratto: #5A6C8C;   /* il vecchio valore, ora solo per i tratti decorativi */
 
   --keep:   #4FE0C0;   /* quello che resta a te */
   --tax:    #F2A65A;   /* quello che prende il fisco */
@@ -69,13 +70,13 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   color: var(--text);
   background: transparent;
   border: 0;
-  border-bottom: 1px dashed var(--line);
+  border-bottom: 1px dashed var(--zero);
   padding: .15rem .1rem;
-  min-height: 38px;
+  min-height: 44px;
   text-align: right;
 }
 .prezzo-live .sym { color: var(--muted); }
-.prezzo-live .badge { min-height: 38px; }
+.prezzo-live .badge { min-height: 44px; }
 
 .marchio {
   margin: 0;
@@ -141,7 +142,7 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   z-index: 2;
 }
 #verdetto .verdetto {
-  background: rgba(10, 16, 28, .82);
+  background: rgba(10, 16, 28, .94);
   backdrop-filter: blur(6px);
   box-shadow: 0 8px 28px rgba(0,0,0,.35);
   padding: .9rem 1.1rem 1rem;
@@ -149,7 +150,8 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
 #verdetto .occhiello { margin-bottom: .35rem; }
 #verdetto .sotto { margin-top: .6rem; }
 .cassetto-stack { margin-bottom: 2.5rem; }
-.grafico-testa { position: relative; margin: 0; }
+.tela { position: relative; }
+.grafico-testa { margin: 0; }
 .schermata > form { grid-area: comandi; }
 #verdetto { grid-area: verdetto; align-self: start; }
 
@@ -172,7 +174,7 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   color: var(--keep);
   background: transparent;
   border: 0;
-  border-bottom: 1px dashed var(--line);
+  border-bottom: 1px dashed var(--zero);
   border-radius: 0;
   padding: .3rem .15rem;
   min-height: 44px;
@@ -209,7 +211,7 @@ main { max-width: var(--w); margin: 0 auto; padding: 0 1.25rem 4rem; }
   padding-top: .75rem;
   margin: 0 0 .5rem;
 }
-.stato-prezzo input.inline {
+.prezzo-live input.inline {
   font-size: .95rem;
   color: var(--text);
   background: transparent;
@@ -284,7 +286,7 @@ input[type="number"], input[type="text"], select {
   min-height: 44px;
   width: 100%;
 }
-input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible {
+input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible, a:focus-visible {
   outline: 2px solid var(--keep);
   outline-offset: 2px;
 }
@@ -631,6 +633,13 @@ footer a {
 }
 
 @media (max-width: 40rem), (pointer: coarse) {
+  /* Le frasi devono poter andare a capo: con nowrap a 375 px la pagina
+     scorreva di lato (406 px misurati). */
+  .barra-comandi .frase { white-space: normal; }
+  .frase input.inline, .frase select, .prezzo-live .badge { min-width: 44px; }
+  .testata { flex-wrap: wrap; }
+  .marchio span { white-space: normal; overflow: visible; }
+  .prezzo-live { margin-left: 0; }
   .corr-etichette { height: auto; display: grid; gap: .5rem; }
   .corr-etichette span { position: static; transform: none; text-align: left !important; left: auto !important; }
   .corr-etichette b { display: inline; margin-left: .4rem; }

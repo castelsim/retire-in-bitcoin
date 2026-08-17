@@ -169,6 +169,12 @@ const GIORNI_LIMITE = (Date.UTC(ANNO_LIMITE, 0, 1) - GENESI) / 86400000;
 const CRESCITA_REALE_DOPO = 0.00;
 const INFLAZIONE_LUNGA = 0.02;   // il carovita che si assume oltre l'orizzonte del modello
 
+// Il corridoio è tarato in dollari e va portato in euro. Se CoinGecko non
+// risponde non abbiamo il cambio: usare 1 significherebbe leggere dollari
+// come euro e sbagliare i bitcoin necessari del 14%, senza che si veda.
+// Meglio un cambio dichiarato, misurato il 17 agosto 2026, e dirlo in pagina.
+const CAMBIO_RIPIEGO = 0.868;    // euro per un dollaro
+
 function rettaPowerLaw(giorni) {
   if (giorni <= GIORNI_LIMITE) return rettaPura(giorni);
   const anni = (giorni - GIORNI_LIMITE) / 365.25;
@@ -184,11 +190,15 @@ const crescitaIstantanea = giorni => PL_N * 365.25 / giorni;
 
 /**
  * Dove sta il prezzo dentro il corridoio, e quanto valgono le tre linee.
- * `giorno` di default è oggi, ma la fascia segue la barra del grafico:
- * spostandola in avanti mostra i prezzi di quell'anno.
+ *
+ * `giornoDelleLinee` cambia solo i tre PREZZI restituiti — la fascia segue la
+ * barra del grafico e mostra quelli dell'anno in cui si comincia a vendere.
+ * La posizione dell'indicatore resta invece quella di OGGI, e va bene: il
+ * corridoio è un multiplo della retta, quindi «a che punto della fascia siamo»
+ * non dipende dalla data.
  */
-function posizioneNelCorridoio(prezzoUsd, giorno) {
-  const d = giorno || giorniDaGenesi();
+function posizioneNelCorridoio(prezzoUsd, giornoDelleLinee) {
+  const d = giornoDelleLinee || giorniDaGenesi();
   const basso = SCENARI[0].perc, alto = SCENARI[2].perc;
   const scarto = Math.log10(prezzoUsd / rettaPowerLaw(giorniDaGenesi()));
   return {
@@ -250,6 +260,7 @@ function lordoPerNetto(paese, netto, prezzo, oltreUnAnno) {
     return { lordo, aliquotaEff: f.aliquota };
   }
 
+  if (!(netto > 0)) return { lordo: 0, aliquotaEff: 0 };
   // A scaglioni non c'è formula chiusa: bisezione, che converge davvero.
   let lo = netto, hi = netto * 3;
   for (let i = 0; i < 60; i++) {
@@ -378,7 +389,14 @@ function pianoDiAccumulo(p, lineaObiettivo, lineaAcquisto, stack) {
 function fabbisogno(p, linea) {
   const base = fabbisognoLiscio(p, linea);
   const conCrollo = capitaleAntiCrollo(p, base.btcNecessari, linea);
-  return { ...base, btcNecessari: conCrollo || base.btcNecessari * 3, btcLiscio: base.btcNecessari };
+  // 10/3 e non 3: nel caso peggiore si vende al 30% del prezzo, quindi il
+  // fattore massimo davvero necessario è 1/0,3. Con 3 il numero pubblicato
+  // non avrebbe retto il crollo.
+  const necessari = conCrollo || base.btcNecessari * (10 / 3);
+  // Le righe vanno risimulate col numero vero: quelle della simulazione
+  // liscia appartenevano a un capitale più piccolo e lo contraddicevano.
+  return { ...base, btcNecessari: necessari, btcLiscio: base.btcNecessari,
+           righe: simula(p, linea, necessari).righe };
 }
 
 /**
@@ -391,7 +409,14 @@ function fabbisogno(p, linea) {
  */
 function integrazioneOttenibile(p, lineaObiettivo, lineaAcquisto, stack, mensileDisponibile) {
   if (!(mensileDisponibile > 0)) return 0;
-  let lo = 0, hi = 1e6;
+  // L'estremo alto si allarga finché serve: fissarlo a un milione faceva
+  // dire «arrivi a 1.000.000» a chi poteva permettersi di più.
+  let lo = 0, hi = 1e5;
+  for (let g = 0; g < 12; g++) {
+    const pa = pianoDiAccumulo({ ...p, nettoAnnuo: hi }, lineaObiettivo, lineaAcquisto, stack);
+    if (pa && pa.mensile > mensileDisponibile) break;
+    hi *= 4;
+  }
   for (let i = 0; i < 40; i++) {
     const mid = (lo + hi) / 2;
     const q = { ...p, nettoAnnuo: mid };
@@ -404,7 +429,7 @@ function integrazioneOttenibile(p, lineaObiettivo, lineaAcquisto, stack, mensile
 /** La linea del corridoio di uno scenario, portata nella valuta locale. */
 function lineaDi(p, sc) {
   const d0 = giorniDaGenesi();
-  const cambio = p.cambioUsd || 1;
+  const cambio = p.cambioUsd || CAMBIO_RIPIEGO;
   return anni => lineaCorridoio(d0 + anni * 365.25, sc.perc) * cambio;
 }
 
@@ -443,7 +468,9 @@ function testTenuta(p, btcIniziali, linea) {
   if (peggiore) return peggiore;
   // Regge ovunque: si riporta quanto resta nel caso in cui il crollo arriva subito.
   const sim = simula(p, crolloDaAnno(p, linea, 0), btcIniziali);
-  return { regge: true, btcResidui: sim.righe[sim.righe.length - 1].residui };
+  const ultima = sim.righe[sim.righe.length - 1];
+  // Senza anni di prelievo non c'è nessuna riga: il capitale resta intero.
+  return { regge: true, btcResidui: ultima ? ultima.residui : btcIniziali };
 }
 
 /** Quanto capitale servirebbe per reggere il crollo. */
@@ -473,6 +500,7 @@ function primaEtaSufficiente(p, stack, sc) {
 // ------------------------------------------------------------
 let prezziLive = { eur: null, pln: null, usd: null };
 let prezzoManuale = false;
+let avviato = false;   // prima dell'avvio le funzioni dell'interfaccia non esistono ancora
 
 async function caricaPrezzo(forzato = false) {
   const badge = document.getElementById("badgePrezzo");
@@ -495,7 +523,9 @@ async function caricaPrezzo(forzato = false) {
     badge.textContent = "non arriva — riprova";
     badge.className = "badge badge-off";
     badge.title = "CoinGecko non ha risposto. Premi per riprovare, oppure scrivi il prezzo a mano.";
-    if (!prezzoManuale && !$prezzo.value) $prezzo.focus();
+    // Niente focus() qui: rubava il cursore mentre l'utente scriveva l'età,
+    // e quello che digitava finiva nel campo del prezzo. Il badge dice già
+    // «non arriva — riprova».
   } finally {
     badge.disabled = false;
   }
@@ -533,7 +563,7 @@ function applicaPrezzoLive() {
   const p = prezzoPerPaese($paese.value);
   if (p) {
     $prezzo.value = Math.round(p);
-    if (typeof adattaTutti === "function") adattaTutti();
+    if (avviato) adattaTutti();
   }
 }
 
@@ -545,7 +575,7 @@ function applicaPrezzoLive() {
 const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto"), $etaFine = $("etaFine"), $disponibile = $("disponibile");
 const $prezzo = $("prezzoOggi"), $stack = $("stack");
-const $grafico = $("grafico"), $corridoio = $("corridoio");
+const $grafico = $("grafico"), $corridoio = $("corridoio"), $verdetto = $("verdetto");
 
 Object.keys(PAESI).forEach(n => {
   const o = document.createElement("option");
@@ -575,7 +605,7 @@ function adattaLarghezza(el) {
   }
 }
 const adattaTutti = () =>
-  document.querySelectorAll(".frase input.inline, .frase select, .stato-prezzo input.inline")
+  document.querySelectorAll(".frase input.inline, .frase select, .prezzo-live input.inline")
     .forEach(adattaLarghezza);
 
 function aggiornaValuta() {
@@ -604,7 +634,7 @@ function leggiInput() {
     etaFine: clamp(parseInt($etaFine.value, 10) || ETA_FINE_DEFAULT, eta + 1, 120),
     etaInizio: clamp(parseInt($etaInizio.value, 10) || eta, eta,
                      clamp(parseInt($etaFine.value, 10) || ETA_FINE_DEFAULT, eta + 1, 120) - 1),
-    nettoAnnuo: parseFloat($netto.value || "0"),
+    nettoAnnuo: Math.min(parseFloat($netto.value || "0") || 0, 1e9),
     prezzoOggi: parseFloat($prezzo.value),
     // Chi accumula e vende dopo anni ha per forza lotti vecchi: si assume,
     // e lo si scrive fra le ipotesi.
@@ -631,7 +661,16 @@ const barra = f => `<div class="bar"><span style="width:${clamp(f * 100, 0, 100)
 // dipende dal solo colore.
 // ------------------------------------------------------------
 function grafico(base, cambio) {
-  const W = 1100, H = 400, ML = 64, MR = 18, MT = 18, MB = 34;
+  // Il viewBox coincide coi pixel veri sullo schermo: cosi un'unita e un
+  // pixel, e le scritte e le aree da toccare restano della misura che
+  // dichiarano. Con un viewBox fisso a 1100 rimpicciolito su un telefono
+  // le scritte scendevano a 3,5 px e la maniglia a 4,3: illeggibili e
+  // intoccabili, pur essendo scritte 10 px e 22 nel codice.
+  const larghezzaVera = $grafico.clientWidth || Math.min(window.innerWidth - 40, 992);
+  const W = Math.max(320, Math.round(larghezzaVera));
+  const H = W < 560 ? 300 : 400;
+  const stretto = W < 560;
+  const ML = stretto ? 44 : 64, MR = stretto ? 10 : 18, MT = 18, MB = 34;
   const annoFine = NOW_YEAR + (base.etaFine - base.eta);
   const annoDa = 2011;
   const px = a => ML + (a - annoDa) / (annoFine - annoDa) * (W - ML - MR);
@@ -661,14 +700,14 @@ function grafico(base, cambio) {
   // finisce esattamente sul pallino di oggi, senza scarti.
   const oggiFraz = NOW_YEAR + (giorniDaGenesi() - giorniDaGenesi(new Date(NOW_YEAR, 0, 1))) / 365.25;
   const oggiX = px(oggiFraz), inizioX = px(oggiFraz + (base.etaInizio - base.eta));
-  const tacche = [1, 100, 10000, 1e6, 1e8].filter(v => v <= maxP);
+  const tacche = (stretto ? [1, 10000, 1e8] : [1, 100, 10000, 1e6, 1e8]).filter(v => v <= maxP);
   const etichettaP = v => v >= 1e6 ? (v / 1e6) + " mln" : v >= 1000 ? (v / 1000) + "k" : String(v);
-  const anniAsse = anni.filter(a => a % 10 === 0);
+  const anniAsse = anni.filter(a => a % (stretto ? 20 : 10) === 0);
 
   return `
     <section class="blocco">
       <figure class="gfx">
-        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Prezzo storico di Bitcoin e corridoio della legge di potenza, dal 2011 al ${annoFine}. Trascina la riga verticale per cambiare l'anno del primo prelievo." preserveAspectRatio="xMidYMid meet"
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Prezzo storico di Bitcoin e corridoio della legge di potenza, dal 2011 al ${annoFine}. Il primo prelievo e fissato al ${NOW_YEAR + (base.etaInizio - base.eta)}; si cambia dal campo «Eta da cui iniziare a prelevare», oppure trascinando la riga verticale." preserveAspectRatio="xMidYMid meet"
                data-da="${annoDa}" data-a="${annoFine}" data-ml="${ML}" data-mr="${MR}" data-w="${W}">
           <rect x="${inizioX.toFixed(1)}" y="${MT}" width="${(W - MR - inizioX).toFixed(1)}" height="${H - MT - MB}" class="g-decumulo" />
           ${tacche.map(v => `<line x1="${ML}" y1="${py(v).toFixed(1)}" x2="${W - MR}" y2="${py(v).toFixed(1)}" class="g-griglia" />
@@ -698,9 +737,9 @@ function grafico(base, cambio) {
               ? `<text x="${(inizioX - 10).toFixed(1)}" y="${yEt}" class="g-nota-inizio" text-anchor="end">${testo}</text>`
               : `<text x="${(inizioX + 10).toFixed(1)}" y="${yEt}" class="g-nota-inizio">${testo}</text>`;
           })()}
-          <rect class="g-presa" x="${(inizioX - 11).toFixed(1)}" y="${MT}" width="22" height="${H - MT - MB}" />
+          <rect class="g-presa" x="${(inizioX - 22).toFixed(1)}" y="${MT}" width="44" height="${H - MT - MB}" />
           <g class="g-maniglia" transform="translate(${inizioX.toFixed(1)},${H - MB})">
-            <circle r="7" /><path d="M-3.5 -3 L-6 0 L-3.5 3 M3.5 -3 L6 0 L3.5 3" />
+            <circle r="11" /><path d="M-4 -4 L-8 0 L-4 4 M4 -4 L8 0 L4 4" />
           </g>
           ${(() => {
             // Su dieci ordini di grandezza la banda si vede sottile: i tre valori
@@ -743,7 +782,8 @@ function render() {
 
   // I messaggi d'errore vanno dove starebbe il risultato: dentro il grafico.
   const errore = testo => {
-    $grafico.innerHTML = `<div id="verdetto"><div class="verdetto"><p class="errore">${testo}</p></div></div>`;
+    $verdetto.innerHTML = `<div class="verdetto"><p class="errore" role="alert">${testo}</p></div>`;
+    $grafico.innerHTML = "";
     $corridoio.innerHTML = "";
   };
   if (!Number.isFinite(base.nettoAnnuo) || base.nettoAnnuo <= 0) {
@@ -756,7 +796,7 @@ function render() {
   const RIF = SCENARI[RIFERIMENTO], CEN = SCENARI[1];
   const r = fabbisogno(base, lineaDi(base, RIF));
   const pa = pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, SCENARI[ACCUMULO]), stack);
-  const cambio = base.cambioUsd || 1;
+  const cambio = base.cambioUsd || CAMBIO_RIPIEGO;
   const annoInizio = NOW_YEAR + r.attesa;
 
   // — Il numero
@@ -790,10 +830,10 @@ function render() {
 
   // — Dove sta il prezzo, adesso: la fascia sotto il grafico
   let corridoioBox = "";
-  if (prezziLive.usd) {
+  {
     // La fascia segue la barra: mostra le tre linee all'anno del primo prelievo.
     const giornoBarra = giorniDaGenesi() + r.attesa * 365.25;
-    const pos = posizioneNelCorridoio(prezziLive.usd, giornoBarra);
+    const pos = posizioneNelCorridoio((prezziLive.usd || base.prezzoOggi / CAMBIO_RIPIEGO), giornoBarra);
     corridoioBox = `
     <div class="corridoio-testa">
       <div class="corridoio">
@@ -807,7 +847,7 @@ function render() {
           <span class="hi">resistenza<br /><b>${c.sym} ${fmt(pos.resistenza * cambio)}</b></span>
         </div>
       </div>
-      <p class="nota">${r.attesa > 0
+      <p class="nota">${!prezziLive.usd ? `<b>Cambio non disponibile</b>: si assume ${fmtPct(CAMBIO_RIPIEGO - 1).replace("−", "")} — cioè ${CAMBIO_RIPIEGO.toString().replace(".", ",")} euro per dollaro, il valore del 17 agosto 2026. ` : ""}${r.attesa > 0
         ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE ? ` Dal <b>${ANNO_LIMITE}</b> in poi Santostasi dice di non usare la legge di potenza: da lì il prezzo cresce solo col carovita, quindi rimandare l'inizio non fa più risparmiare bitcoin.` : ""}`
         : `Le tre linee sono i prezzi di oggi. Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta di regressione, nella parte bassa della fascia.`}</p>
     </div>`;
@@ -818,18 +858,23 @@ function render() {
   const senzaCrollo = fabbisognoLiscio(base, lineaDi(base, RIF)).btcNecessari;
   const suMediana = fabbisogno(base, lineaDi(base, CEN)).btcNecessari;
   const rif = r.btcNecessari;
+  const etaLeva = Math.min(90, base.etaFine - 5);
   const leve = [
     ["sulla mediana invece che sul fondo", suMediana / rif - 1],
     ["senza tenere il crollo del 70%", senzaCrollo / rif - 1],
-    [`fino a ${Math.min(90, base.etaFine - 5)} anni invece di ${base.etaFine}`,
-      fabbisogno({ ...base, etaFine: Math.min(90, base.etaFine - 5) }, lineaDi(base, RIF)).btcNecessari / rif - 1],
   ];
+  // La terza leva solo se accorciare l'orizzonte lascia almeno un prelievo.
+  if (etaLeva > base.etaInizio) {
+    leve.push([`fino a ${etaLeva} anni invece di ${base.etaFine}`,
+      fabbisogno({ ...base, etaFine: etaLeva }, lineaDi(base, RIF)).btcNecessari / rif - 1]);
+  }
   const leveBox = `
     <p class="leve">Il numero dipende da tre scelte, non da fatti: ${leve
       .map(([n, d]) => `<span>${n} <b>${d < 0 ? "−" : "+"}${Math.abs(d * 100).toFixed(0)}%</b></span>`)
       .join(" · ")}</p>`;
 
-  $grafico.innerHTML = grafico(base, cambio) + `<div id="verdetto">${testa}</div>`;
+  $grafico.innerHTML = grafico(base, cambio);
+  $verdetto.innerHTML = testa;
   $corridoio.innerHTML = corridoioBox + leveBox;
 }
 
@@ -857,6 +902,7 @@ function trascina(svg, clientX) {
     $etaInizio.value = eta;
     adattaLarghezza($etaInizio);
     render();
+    scriviIndirizzo();     // se no il link copiato conserva l'anno vecchio
   }
 }
 
@@ -876,6 +922,9 @@ document.addEventListener("pointerdown", e => {
 });
 document.addEventListener("pointermove", e => {
   if (!inTrascinamento) return;
+  // Se nessun tasto è più premuto il gesto è finito, anche se il rilascio
+  // è avvenuto fuori dalla finestra o il browser si è preso il tocco.
+  if (e.buttons === 0) { fineTrascinamento(); return; }
   // Il grafico viene ridisegnato a ogni movimento: il nodo di partenza non è
   // più nel documento e misurarlo darebbe coordinate sbagliate. Si ripesca.
   const svg = document.querySelector(".gfx svg");
@@ -883,10 +932,12 @@ document.addEventListener("pointermove", e => {
   e.preventDefault();
   trascina(svg, e.clientX);
 }, { passive: false });
-document.addEventListener("pointerup", () => {
+function fineTrascinamento() {
   inTrascinamento = false;
   document.body.classList.remove("sto-trascinando");
-});
+}
+document.addEventListener("pointerup", fineTrascinamento);
+document.addEventListener("pointercancel", fineTrascinamento);
 
 // ------------------------------------------------------------
 // Ascolto: ogni modifica ridisegna, senza aspettare un pulsante
@@ -906,6 +957,12 @@ $("planner").addEventListener("change", e => {
   ridisegna();
 });
 
+let attesaResize = null;
+window.addEventListener("resize", () => {
+  clearTimeout(attesaResize);
+  attesaResize = setTimeout(() => { adattaTutti(); render(); }, 150);
+});
+
 $paese.addEventListener("change", aggiornaValuta);
 $etaFine.addEventListener("change", () => {
   // Non si prelevano soldi dopo la fine.
@@ -921,7 +978,7 @@ $eta.addEventListener("change", () => {
     adattaLarghezza($etaInizio);
   }
 });
-$prezzo.addEventListener("input", () => { prezzoManuale = true; });
+$prezzo.addEventListener("input", () => { prezzoManuale = true; adattaLarghezza($prezzo); ridisegna(); });
 $("badgePrezzo").addEventListener("click", () => caricaPrezzo(true).then(render));
 
 // ------------------------------------------------------------
@@ -936,7 +993,11 @@ function leggiIndirizzo() {
   for (const [chiave, id] of Object.entries(CAMPI_URL)) {
     const v = q.get(chiave);
     const el = $(id);
-    if (v !== null && el) { el.value = v; trovato = true; }
+    if (v === null || !el) continue;
+    // Un paese che non conosciamo azzererebbe il menu e farebbe cadere tutto:
+    // meglio ignorarlo e restare su quello di partenza.
+    if (id === "paese" && !PAESI[v]) continue;
+    el.value = v; trovato = true;
   }
   return trovato;
 }
@@ -958,8 +1019,9 @@ function scriviIndirizzo() {
 // ------------------------------------------------------------
 // Avvio: la pagina apre già con una risposta, non con un modulo vuoto
 // ------------------------------------------------------------
+avviato = true;
 const daIndirizzo = leggiIndirizzo();
 aggiornaValuta();
-if (daIndirizzo) prezzoManuale = !!new URLSearchParams(location.search).get("pr");
-caricaPrezzo().then(render);
-aggiornaCodaStorica().then(render);
+// Un solo render quando entrambe le richieste hanno finito: altrimenti la
+// più veloce disegnava «manca il prezzo» prima che il prezzo arrivasse.
+Promise.allSettled([caricaPrezzo(), aggiornaCodaStorica()]).then(render);
