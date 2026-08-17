@@ -3,7 +3,7 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,accumuloStorico,prezzoStoricoAl,STORICO,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
@@ -147,6 +147,26 @@ const tab=Object.keys(PAESI).map(n=>({n,v:fab({...base,paese:n},CEN)})).sort((a,
 tab.forEach(x=>console.log('     '+x.n.padEnd(11)+x.v.toFixed(6)+' BTC'));
 ok('nessuno fuori scala', tab[5].v/tab[0].v<2, 'rapporto '+(tab[5].v/tab[0].v).toFixed(2));
 ok('i due esenti sono i piu economici', ['Portogallo','Germania'].includes(tab[0].n)&&['Portogallo','Germania'].includes(tab[1].n));
+
+console.log('\n--- 9. IL PASSATO (prezzi veri, nessun modello) ---');
+// Un versamento al mese, contati sul calendario: 2019 -> oggi sono 91 mesi.
+const p19=accumuloStorico(2019,500,1);
+ok('dal 2019 sono 91 versamenti', p19.mesi===91, p19.mesi+' mesi');
+ok('il versato e mesi x rata', p19.versato===91*500, p19.versato+' USD');
+ok('il costo medio e versato/BTC', Math.abs(p19.costoMedio-p19.versato/p19.btc)<1e-9);
+ok('cominciare prima da piu BTC', accumuloStorico(2015,500,1).btc>p19.btc);
+ok('cominciare dopo ne da meno', accumuloStorico(2023,500,1).btc<p19.btc);
+ok('un anno futuro non ha passato', accumuloStorico(2030,500,1)===null);
+// digitando 2005 nel campo uscivano 511.273 BTC comprati a 0,07 dollari
+ok('prima della serie non si inventa un passato', accumuloStorico(2005,500,1)===null);
+ok('nemmeno l anno mozzo di partenza', accumuloStorico(2010,500,1)===null);
+ok('il primo anno intero invece si', accumuloStorico(2011,500,1)!==null);
+ok('il cambio scala solo i BTC',
+   Math.abs(accumuloStorico(2019,500,0.868).btc/p19.btc-1/0.868)<1e-9);
+// prima e dopo la serie si resta agganciati agli estremi, non a zero
+ok('prima del primo prezzo si usa il primo', prezzoStoricoAl(0)===STORICO[0][1]);
+ok('dopo l ultimo si usa l ultimo',
+   prezzoStoricoAl(99999)===STORICO[STORICO.length-1][1]);
 
 console.log(ko===0?'\nTUTTI I CONTROLLI PASSATI\n':'\n'+ko+' CONTROLLI FALLITI\n');
 process.exit(ko?1:0);
