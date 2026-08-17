@@ -600,6 +600,9 @@ function grafico(base, cambio) {
   for (let a = annoDa; a <= annoFine; a++) anni.push(a);
   const linea = perc => anni.map(a => `${px(a).toFixed(1)},${py(lineaCorridoio(giorniDi(a), perc) * cambio).toFixed(1)}`);
   const sup = linea(SCENARI[0].perc), cen = linea(SCENARI[1].perc), res = linea(SCENARI[2].perc);
+  // La mediana si spezza al 2040: prima è il modello, dopo è la prosecuzione.
+  const iLimite = Math.max(1, anni.findIndex(a => a >= ANNO_LIMITE));
+  const cenModello = cen.slice(0, iLimite + 1), cenOltre = cen.slice(iLimite);
   const banda = `M${res.join("L")}L${sup.slice().reverse().join("L")}Z`;
 
   // la storia vera
@@ -625,17 +628,29 @@ function grafico(base, cambio) {
              <text x="${ML - 8}" y="${(py(v) + 4).toFixed(1)}" class="g-tacca" text-anchor="end">${etichettaP(v)}</text>`).join("")}
           ${anniAsse.map(a => `<text x="${px(a).toFixed(1)}" y="${H - 12}" class="g-tacca" text-anchor="middle">${a}</text>`).join("")}
           <path d="${banda}" class="g-banda" />
-          <polyline points="${cen.join(" ")}" class="g-centro" />
+          <polyline points="${cenModello.join(" ")}" class="g-centro" />
+          <polyline points="${cenOltre.join(" ")}" class="g-centro-oltre" />
           <polyline points="${st.join(" ")}" class="g-storico" />
           ${(() => {
             const xl = px(ANNO_LIMITE);
             return xl > ML && xl < W - MR
-              ? `<line x1="${xl.toFixed(1)}" y1="${MT}" x2="${xl.toFixed(1)}" y2="${H - MB}" class="g-limite" />
-                 <text x="${(xl + 5).toFixed(1)}" y="${H - MB - 6}" class="g-nota-limite">dal ${ANNO_LIMITE} il modello scade: da qui solo carovita</text>`
+              ? `<line x1="${xl.toFixed(1)}" y1="${MT}" x2="${xl.toFixed(1)}" y2="${H - MB}" class="g-limite" />`
               : "";
           })()}
           <line x1="${inizioX.toFixed(1)}" y1="${MT}" x2="${inizioX.toFixed(1)}" y2="${H - MB}" class="g-inizio" />
-          <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 10}" class="g-nota-inizio">vendi dal ${NOW_YEAR + (base.etaInizio - base.eta)} · ${base.etaInizio} anni ⇄</text>
+          ${(() => {
+            // L'etichetta sta accanto alla maniglia, in basso: è la cosa che
+            // trascini, e lì il disegno è vuoto. In alto invece i tre prezzi
+            // del corridoio si stringono quando la curva si appiattisce, e
+            // qualunque scritta finirebbe sopra di loro.
+            const testo = `vendi dal ${NOW_YEAR + (base.etaInizio - base.eta)} · ${base.etaInizio} anni ⇄`;
+            const yEt = H - MB - 12;
+            // Se la riga è troppo a destra, la scritta va a sinistra.
+            const aSinistra = inizioX > W - MR - 190;
+            return aSinistra
+              ? `<text x="${(inizioX - 10).toFixed(1)}" y="${yEt}" class="g-nota-inizio" text-anchor="end">${testo}</text>`
+              : `<text x="${(inizioX + 10).toFixed(1)}" y="${yEt}" class="g-nota-inizio">${testo}</text>`;
+          })()}
           <rect class="g-presa" x="${(inizioX - 11).toFixed(1)}" y="${MT}" width="22" height="${H - MT - MB}" />
           <g class="g-maniglia" transform="translate(${inizioX.toFixed(1)},${H - MB})">
             <circle r="7" /><path d="M-3.5 -3 L-6 0 L-3.5 3 M3.5 -3 L6 0 L3.5 3" />
@@ -665,7 +680,8 @@ function grafico(base, cambio) {
         </svg>
         <figcaption>
           <span class="g-leg"><i class="l-storico"></i>prezzo reale</span>
-          <span class="g-leg"><i class="l-centro"></i>mediana del modello</span>
+          <span class="g-leg"><i class="l-centro"></i>mediana del modello, fino al ${ANNO_LIMITE}</span>
+          <span class="g-leg"><i class="l-oltre"></i>dopo: solo carovita</span>
           <span class="g-leg"><i class="l-banda"></i>corridoio, dal 5° al 95° percentile</span>
           <span class="g-scala">prezzi in scala logaritmica</span>
         </figcaption>

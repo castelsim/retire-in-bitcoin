@@ -421,6 +421,8 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 .g-tacca { fill: var(--faint); font-family: var(--mono); font-size: 10px; }
 .g-banda { fill: var(--keep); opacity: .12; }
 .g-centro { fill: none; stroke: var(--keep); stroke-width: 2; stroke-dasharray: 6 4; }
+/* Dopo il 2040 la mediana cambia tratto: non e piu il modello, e una prosecuzione. */
+.g-centro-oltre { fill: none; stroke: var(--muted); stroke-width: 2; stroke-dasharray: 1 4; }
 .g-storico { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; }
 .g-decumulo { fill: #fff; opacity: .035; }
 .g-inizio { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
@@ -464,6 +466,7 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .g-leg i { width: 18px; height: 2px; display: inline-block; }
 .l-storico { background: var(--text); }
 .l-centro { background: repeating-linear-gradient(90deg, var(--keep) 0 6px, transparent 6px 10px); }
+.l-oltre { background: repeating-linear-gradient(90deg, var(--muted) 0 1px, transparent 1px 5px); }
 .l-banda { background: var(--keep); opacity: .3; height: 10px !important; border-radius: 2px; }
 .g-scala { margin-left: auto; }
 
