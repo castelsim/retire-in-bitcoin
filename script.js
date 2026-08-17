@@ -128,10 +128,59 @@ const RIFERIMENTO = 0;   // indice in SCENARI: 0 supporto · 1 centro · 2 resis
  */
 const ACCUMULO = 1;
 
+// ------------------------------------------------------------
+// IL LIMITE CHE PONE L'AUTORE STESSO
+//
+// Santostasi scrive che la legge di potenza «non andrebbe usata per fare
+// previsioni oltre il 2040». Estrapolata comunque, al 2090 darebbe 640
+// milioni di dollari per bitcoin: ventidue volte la ricchezza del pianeta,
+// una cifra che non descrive più niente.
+//
+// Qui la curva segue la legge di potenza fino al 2040. Dopo, la crescita
+// continua al ritmo che la curva ha proprio in quell'anno e poi decade
+// come farebbe la power law (n/t), senza riaccelerare: il prezzo sale
+// ancora, ma smette di essere una previsione del modello e diventa
+// un'estrapolazione dichiarata.
+// ------------------------------------------------------------
+const ANNO_LIMITE = 2040;
+
 const giorniDaGenesi = (data = new Date()) => (data.getTime() - GENESI) / 86400000;
 
-/** La retta della regressione, in dollari. */
-const rettaPowerLaw = giorni => Math.pow(10, PL_A + PL_N * Math.log10(giorni));
+/** La retta della regressione pura, senza limiti: serve al grafico storico. */
+const rettaPura = giorni => Math.pow(10, PL_A + PL_N * Math.log10(giorni));
+
+/** Il giorno in cui scade la validità dichiarata dal modello. */
+const GIORNI_LIMITE = (Date.UTC(ANNO_LIMITE, 0, 1) - GENESI) / 86400000;
+
+/**
+ * La retta usata dai conti: legge di potenza fino al 2040, poi la stessa
+ * pendenza che aveva lì, in decadimento. Non riaccelera mai.
+ */
+// Il secondo vincolo: bitcoin non può valere più di una quota della
+// ricchezza del mondo. Ricchezza netta globale ~620.000 miliardi di
+// dollari (McKinsey/UBS 2026), che cresce del 5% l'anno; il tetto è il
+// 15% — tre volte la quota che ha l'oro oggi (~5%).
+const RICCHEZZA_2026 = 620e12, CRESCITA_RICCHEZZA = 0.05, QUOTA_MAX = 0.15, BTC_TOTALI = 21e6;
+const tettoRicchezza = anniDaOggi =>
+  RICCHEZZA_2026 * Math.pow(1 + CRESCITA_RICCHEZZA, anniDaOggi) * QUOTA_MAX / BTC_TOTALI;
+
+/**
+ * La retta usata dai conti: legge di potenza fino al 2040, poi la stessa
+ * pendenza che aveva lì, in decadimento, e comunque mai sopra la quota
+ * di ricchezza mondiale. Non riaccelera mai.
+ */
+function rettaPowerLaw(giorni) {
+  const anniDaOggi = (giorni - giorniDaGenesi()) / 365.25;
+  const tetto = tettoRicchezza(Math.max(0, anniDaOggi));
+  if (giorni <= GIORNI_LIMITE) return Math.min(rettaPura(giorni), tetto);
+  // Oltre il 2040 si prosegue con la pendenza di quell'anno, che continua
+  // a smorzarsi come n/t: l'esponente ridotto tiene conto del fatto che
+  // l'autore stesso non garantisce il modello così avanti.
+  const t0 = GIORNI_LIMITE / 365.25;
+  const t = giorni / 365.25;
+  const esteso = rettaPura(GIORNI_LIMITE) * Math.pow(t / t0, PL_N * 0.62);
+  return Math.min(esteso, tetto);
+}
 
 /** Una linea del corridoio, in dollari: la retta per il suo scarto. */
 const lineaCorridoio = (giorni, perc) => rettaPowerLaw(giorni) * Math.pow(10, perc);
@@ -139,13 +188,17 @@ const lineaCorridoio = (giorni, perc) => rettaPowerLaw(giorni) * Math.pow(10, pe
 /** La crescita istantanea della curva: n/t. Rallenta sempre, per costruzione. */
 const crescitaIstantanea = giorni => PL_N * 365.25 / giorni;
 
-/** Dove sta il prezzo, adesso, dentro il corridoio. */
-function posizioneNelCorridoio(prezzoUsd) {
-  const d = giorniDaGenesi();
+/**
+ * Dove sta il prezzo dentro il corridoio, e quanto valgono le tre linee.
+ * `giorno` di default è oggi, ma la fascia segue la barra del grafico:
+ * spostandola in avanti mostra i prezzi di quell'anno.
+ */
+function posizioneNelCorridoio(prezzoUsd, giorno) {
+  const d = giorno || giorniDaGenesi();
   const basso = SCENARI[0].perc, alto = SCENARI[2].perc;
-  const scarto = Math.log10(prezzoUsd / rettaPowerLaw(d));
+  const scarto = Math.log10(prezzoUsd / rettaPowerLaw(giorniDaGenesi()));
   return {
-    rapporto: prezzoUsd / rettaPowerLaw(d),
+    rapporto: prezzoUsd / rettaPowerLaw(giorniDaGenesi()),
     frazione: Math.max(0, Math.min(1, (scarto - basso) / (alto - basso))),
     // la scala è lineare nei logaritmi: il 50° percentile non cade a metà
     fraz50: (SCENARI[1].perc - basso) / (alto - basso),
@@ -454,7 +507,7 @@ function applicaPrezzoLive() {
 const $ = id => document.getElementById(id);
 const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto");
 const $prezzo = $("prezzoOggi"), $stack = $("stack");
-const $out = $("risultati"), $grafico = $("grafico"), $corridoio = $("corridoio");
+const $grafico = $("grafico"), $corridoio = $("corridoio");
 
 Object.keys(PAESI).forEach(n => {
   const o = document.createElement("option");
@@ -580,6 +633,13 @@ function grafico(base, cambio) {
           <path d="${banda}" class="g-banda" />
           <polyline points="${cen.join(" ")}" class="g-centro" />
           <polyline points="${st.join(" ")}" class="g-storico" />
+          ${(() => {
+            const xl = px(ANNO_LIMITE);
+            return xl > ML && xl < W - MR
+              ? `<line x1="${xl.toFixed(1)}" y1="${MT}" x2="${xl.toFixed(1)}" y2="${H - MB}" class="g-limite" />
+                 <text x="${(xl + 5).toFixed(1)}" y="${H - MB - 6}" class="g-nota-limite">oltre il ${ANNO_LIMITE} Santostasi dice di non usarlo</text>`
+              : "";
+          })()}
           <line x1="${inizioX.toFixed(1)}" y1="${MT}" x2="${inizioX.toFixed(1)}" y2="${H - MB}" class="g-inizio" />
           <text x="${(inizioX + 6).toFixed(1)}" y="${MT + 12}" class="g-nota-inizio">vendi dal ${NOW_YEAR + (base.etaInizio - base.eta)} · ${base.etaInizio} anni ⇄</text>
           <rect class="g-presa" x="${(inizioX - 11).toFixed(1)}" y="${MT}" width="22" height="${H - MT - MB}" />
@@ -624,46 +684,48 @@ function render() {
   const c = PAESI[base.paese];
   const stack = stackInBTC();
 
+  // I messaggi d'errore vanno dove starebbe il risultato: dentro il grafico.
+  const errore = testo => {
+    $grafico.innerHTML = `<div id="verdetto"><div class="verdetto"><p class="errore">${testo}</p></div></div>`;
+    $corridoio.innerHTML = "";
+  };
   if (!Number.isFinite(base.nettoAnnuo) || base.nettoAnnuo <= 0) {
-    $out.innerHTML = `<p class="errore">Scrivi di quanto hai bisogno ogni anno: senza quello non c'è niente da calcolare.</p>`;
-    return;
+    return errore("Scrivi di quanto hai bisogno ogni anno: senza quello non c'è niente da calcolare.");
   }
   if (!Number.isFinite(base.prezzoOggi) || base.prezzoOggi <= 0) {
-    $out.innerHTML = `<p class="errore">Manca il prezzo di Bitcoin. Premi ↻ per rileggerlo, oppure scrivilo a mano.</p>`;
-    return;
+    return errore("Manca il prezzo di Bitcoin. Premi ↻ per rileggerlo, oppure scrivilo a mano.");
   }
 
-  const [SUP, CEN, RES] = SCENARI;
   const RIF = SCENARI[RIFERIMENTO];
-  const rCentro = fabbisogno(base, lineaDi(base, RIF));
-  const rBasso = fabbisogno(base, lineaDi(base, SUP));
-  const rAlto = fabbisogno(base, lineaDi(base, RES));
+  const r = fabbisogno(base, lineaDi(base, RIF));
+  const pa = pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, SCENARI[ACCUMULO]), stack);
   const cambio = base.cambioUsd || 1;
-  const annoInizio = NOW_YEAR + rCentro.attesa;
+  const annoInizio = NOW_YEAR + r.attesa;
 
   // — Il numero
-  const pa = pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, SCENARI[ACCUMULO]), stack);
   const testa = `
     <div class="verdetto">
       <p class="occhiello">Devi mettere da parte</p>
       ${!pa
         ? // Cominci subito: non c'è nessun mese per accumulare, servono adesso.
-          (stack >= rCentro.btcNecessari
+          (stack >= r.btcNecessari
             ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
-               <p class="sotto">cominci subito, e i tuoi ${fmtBTC(stack)} BTC coprono già l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
-            : `<p class="cifra">${fmtBTC(rCentro.btcNecessari)}<span class="unita">BTC, adesso</span></p>
-               <p class="sotto">cominciando a prelevare subito non c'è tempo per accumulare: quei bitcoin devi averli già${stack > 0 ? `, e ne hai ${fmtBTC(stack)}` : ""}. Sposta più avanti l'età da cui prelevi e comparirà quanto versare ogni mese.</p>`)
+               <p class="sotto">cominci subito, e i tuoi ${fmtBTC(stack)} BTC superano l'obiettivo di ${fmtBTC(r.btcNecessari)}</p>`
+            : `<p class="cifra">${fmtBTC(r.btcNecessari)}<span class="unita">BTC, adesso</span></p>
+               <p class="sotto">cominci subito: quei bitcoin devi averli già${stack > 0 ? `, e ne hai ${fmtBTC(stack)}` : ""}. Sposta più avanti l'età da cui prelevi e comparirà quanto versare al mese.</p>`)
         : pa.giaCoperto
         ? `<p class="cifra">niente<span class="unita">basta quello che hai</span></p>
-           <p class="sotto">i tuoi ${fmtBTC(stack)} BTC superano l'obiettivo di ${fmtBTC(rCentro.btcNecessari)}</p>`
+           <p class="sotto">i tuoi ${fmtBTC(stack)} BTC superano l'obiettivo di ${fmtBTC(r.btcNecessari)}</p>`
         : `<p class="cifra">${c.sym} ${fmt(pa.mensile)}<span class="unita">al mese</span></p>
-           <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(rCentro.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}<br /><span class="prudente">obiettivo sul fondo del corridoio, acquisti alla mediana</span></p>`}
+           <p class="sotto">${Math.round(pa.anni)} anni · ${c.sym} ${fmt(pa.totale)} · <b>${fmtBTC(r.btcNecessari)} BTC</b>${stack > 0 ? ` · ne hai ${fmtBTC(stack)}` : ""}<br /><span class="prudente">obiettivo sul fondo del corridoio, acquisti alla mediana</span></p>`}
     </div>`;
 
-  // — Dove sta il prezzo, adesso
+  // — Dove sta il prezzo, adesso: la fascia sotto il grafico
   let corridoioBox = "";
   if (prezziLive.usd) {
-    const pos = posizioneNelCorridoio(prezziLive.usd);
+    // La fascia segue la barra: mostra le tre linee all'anno del primo prelievo.
+    const giornoBarra = giorniDaGenesi() + r.attesa * 365.25;
+    const pos = posizioneNelCorridoio(prezziLive.usd, giornoBarra);
     corridoioBox = `
     <div class="corridoio-testa">
       <div class="corridoio">
@@ -677,109 +739,16 @@ function render() {
           <span class="hi">resistenza<br /><b>${c.sym} ${fmt(pos.resistenza * cambio)}</b></span>
         </div>
       </div>
-      <p class="nota">Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta di regressione, cioè nella parte bassa della fascia. Il corridoio non dice quando: dice dove il prezzo è stato per il novanta per cento della sua storia.</p>
+      <p class="nota">${r.attesa > 0
+        ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE + 5 ? ` <b>Attenzione</b>: Santostasi dice di non usare la legge di potenza oltre il ${ANNO_LIMITE}, quindi da lì in poi la curva è una prosecuzione prudente, non una sua previsione.` : ""}`
+        : `Le tre linee sono i prezzi di oggi. Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta di regressione, nella parte bassa della fascia.`}</p>
     </div>`;
   }
 
-  // — Le tre linee
-  const carte = SCENARI.map(sc => {
-    const linea = lineaDi(base, sc);
-    const r = fabbisogno(base, linea);
-    const eta = primaEtaSufficiente(base, stack, sc);
-    const cop = stack > 0 ? stack / r.btcNecessari : 0;
-    return `
-      <article class="scenario" style="--tono:${sc.tono}">
-        <header><h3>${sc.nome}</h3><span class="cagr">${sc.q} percentile</span></header>
-        <p class="scenario-cifra">${fmtBTC(r.btcNecessari)} <span>BTC oggi</span></p>
-        <p class="scenario-eq">${c.sym} ${fmt(r.btcNecessari * base.prezzoOggi)} ai prezzi di adesso · bitcoin a ${c.sym} ${fmt(r.prezzoInizio)} quando cominci</p>
-        <p class="scenario-desc">${sc.desc}</p>
-        ${stack > 0 ? `<div class="cop">${barra(cop)}<p>i tuoi ${fmtBTC(stack)} BTC coprono il <b>${fmtPct(cop)}</b>${eta ? ` · basterebbero cominciando a <b>${eta} anni</b>` : " · non bastano nemmeno rimandando"}</p></div>` : ""}
-      </article>`;
-  }).join("");
-
-  const scenariBox = `
-    <section class="blocco">
-      <h2>Le tre linee del corridoio</h2>
-      <p class="intro">La legge di potenza non dà un prezzo: dà una fascia. Questi sono i suoi tre bordi, presi dai residui della regressione. <b>Tutti i numeri della pagina vengono dal primo</b>, il fondo del corridoio: è il caso peggiore, e se il prezzo farà meglio ti troverai con più di quello che ti serve.</p>
-      <div class="scenari">${carte}</div>
-    </section>`;
-
-  // — Il fisco
-  const f = FISCO[base.paese];
-  const extra = rCentro.lordoInizio - rCentro.nettoInizio;
-  const fiscoBox = `
-    <section class="blocco">
-      <h2>Il primo prelievo, quando avrai ${base.etaInizio} anni</h2>
-      <div class="bar bar-split">
-        <span class="q-keep" style="width:${100 * rCentro.nettoInizio / rCentro.lordoInizio}%"></span>
-        <span class="q-tax" style="width:${100 * extra / rCentro.lordoInizio}%"></span>
-      </div>
-      <p class="legenda">
-        vendi <b>${c.sym} ${fmt(rCentro.lordoInizio)}</b> ·
-        <b class="k">${c.sym} ${fmt(rCentro.nettoInizio)}</b> a te ·
-        <b class="t">${c.sym} ${fmt(extra)}</b> di imposta · effettiva <b>${fmtPct(rCentro.aliquotaEff)}</b>
-      </p>
-      <p class="nota">Il netto è più alto dei ${c.sym} ${fmt(base.nettoAnnuo)} che hai chiesto perché è rivalutato: fra ${rCentro.attesa} anni serviranno più soldi per comprare le stesse cose. ${f.nota}</p>
-    </section>`;
-
-  // — I sei paesi
-  const confronto = Object.keys(PAESI).map(n => {
-    const pz = prezzoPerPaese(n) || (PAESI[n].valuta === c.valuta ? base.prezzoOggi : null);
-    if (!pz) return null;
-    const fattore = PAESI[n].valuta === c.valuta ? 1 : pz / base.prezzoOggi;
-    const q = { ...base, paese: n, nettoAnnuo: base.nettoAnnuo * fattore,
-                prezzoOggi: pz,
-                cambioUsd: prezziLive.usd ? pz / prezziLive.usd : null };
-    return { n, btc: fabbisogno(q, lineaDi(q, RIF)).btcNecessari, et: FISCO[n].etichetta };
-  }).filter(Boolean).sort((a, b) => a.btc - b.btc);
-  const maxBtc = Math.max(...confronto.map(x => x.btc));
-
-  const paesiBox = `
-    <section class="blocco">
-      <h2>La stessa integrazione, ${confronto.length} paesi</h2>
-      <p class="intro">Stesso importo, stessa età, stessa linea del corridoio: cambia solo il fisco. Fra il primo e l'ultimo ballano <b>${fmtBTC(maxBtc - confronto[0].btc)} BTC</b>, il ${(100 * (maxBtc / confronto[0].btc - 1)).toFixed(0)}% in più.</p>
-      <table class="tabella">
-        <thead><tr><th>Paese</th><th>Regime</th><th class="num">BTC oggi</th><th></th></tr></thead>
-        <tbody>${confronto.map(x => `
-          <tr class="${x.n === base.paese ? "tuo" : ""}">
-            <td class="pa">${x.n}${x.n === base.paese ? " <span class='tag'>tu</span>" : ""}</td>
-            <td class="reg">${x.et}</td>
-            <td class="num">${fmtBTC(x.btc)}</td>
-            <td class="viz">${barra(x.btc / maxBtc)}</td>
-          </tr>`).join("")}</tbody>
-      </table>
-      <p class="nota">Gli importi sono convertiti fra valute al prezzo di Bitcoin, così le righe differiscono solo per il fisco. Non è corretto per il diverso costo della vita: a Lisbona si spende meno che a Monaco, e questo confronto non lo dice.</p>
-    </section>`;
-
-  // — Le ipotesi
-  const d0 = giorniDaGenesi();
-  const ipotesi = `
-    <section class="blocco piede">
-      <h2>Che cosa ho assunto</h2>
-      <ul class="ipotesi">
-        <li><b>Regge un crollo del 70%</b> — il capitale non è il minimo che basta se tutto va liscio (sarebbero ${fmtBTC(rCentro.btcLiscio)} BTC), ma quello che sopravvive a un crollo del 70% con recupero in quattro anni, provato in <b>ognuno</b> dei ${rCentro.anni} anni di prelievi e tenendo il peggiore.</li>
-        <li><b>Il caso peggiore, dove conta</b> — quanti bitcoin ti servono si calcola sulla linea di <b>supporto</b>, il 5° percentile: nella storia di Bitcoin il prezzo è stato più in basso solo cinque giorni su cento. Sulla mediana ne basterebbero ${fmtBTC(fabbisogno(base, lineaDi(base, CEN)).btcNecessari)} invece di ${fmtBTC(rCentro.btcNecessari)}.</li>
-        <li><b>La mediana, dove ha senso</b> — i prezzi a cui compri durante l'accumulo escono invece dalla <b>mediana</b>: su ${fmt(Math.round(rCentro.attesa * 12))} versamenti il prezzo medio pagato tende lì per costruzione, e comprare per anni ai prezzi del tetto è uno scenario che il corridoio non contempla. Sul supporto il versamento sarebbe ${c.sym} ${fmt(pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, SUP), stack)?.mensile || 0)}, sulla resistenza ${c.sym} ${fmt(pianoDiAccumulo(base, lineaDi(base, RIF), lineaDi(base, RES), stack)?.mensile || 0)}.</li>
-        <li><b>Un solo modello di prezzo</b> — la legge di potenza, coi parametri rifatti il ${PL_DATA_FIT} su ${fmt(PL_PUNTI)} giorni di storia: esponente ${String(PL_N).replace(".", ",")}, R² ${String(PL_R2).replace(".", ",")}. Nessun tasso di crescita scelto a mano.</li>
-        <li><b>La crescita rallenta</b> — vale n/t, per costruzione: ${fmtPct(crescitaIstantanea(d0))} adesso, ${fmtPct(crescitaIstantanea(d0 + 10 * 365.25))} fra dieci anni, ${fmtPct(crescitaIstantanea(d0 + 30 * 365.25))} fra trenta.</li>
-        <li><b>Decumulo programmato</b> — ${rCentro.anni} prelievi dai ${base.etaInizio} ai ${ETA_MAX} anni. Alla fine non resta niente: è voluto, non è una rendita perpetua.</li>
-        <li><b>Potere d'acquisto di oggi</b> — i ${c.sym} ${fmt(base.nettoAnnuo)} che hai chiesto vengono rivalutati del ${fmtPct(c.infl)} l'anno, prima e durante il decumulo.</li>
-        <li><b>Detenzione oltre l'anno</b> — si assume che i bitcoin venduti siano stati comprati da più di un anno prima: chi accumula adesso e comincia a vendere fra ${rCentro.attesa} anni ha per forza lotti vecchi. In Germania e Portogallo è la condizione che azzera l'imposta.</li>
-        <li><b>Imposta</b> — ${f.etichetta}${f.bollo ? `, più il bollo dello ${fmtPct(f.bollo)} annuo, che erode i sat anche nei ${rCentro.attesa} anni in cui non vendi niente` : ""}, sempre e solo sulla plusvalenza.</li>
-      </ul>
-      <p class="avvertenza">
-        Il limite da tenere presente: la legge di potenza descrive bene sedici anni di storia, ma
-        estrapolarla fino ai tuoi cento anni è un'altra cosa. Nessuna regressione sa quello che non
-        è ancora successo, e su orizzonti lunghi la curva arriva a valori che il mondo potrebbe non
-        sostenere — la tabella qui sopra te li mostra apposta. Il risultato è una fascia, non una
-        cifra. Non è consulenza finanziaria.
-      </p>
-    </section>`;
-
   $grafico.innerHTML = grafico(base, cambio) + `<div id="verdetto">${testa}</div>`;
   $corridoio.innerHTML = corridoioBox;
-  $out.innerHTML = scenariBox + fiscoBox + paesiBox + ipotesi;
 }
+
 
 // ------------------------------------------------------------
 // Il grafico si manovra: trascinando la riga verticale si sposta l'anno

@@ -410,12 +410,6 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
   display: flex;
 }
 .bar > span { background: var(--keep); display: block; height: 100%; }
-.bar-split { height: 14px; }
-.bar-split .q-keep { background: var(--keep); }
-.bar-split .q-tax  { background: var(--tax); }
-.legenda { font-family: var(--mono); font-size: .84rem; color: var(--muted); margin: .7rem 0 0; }
-.legenda .k { color: var(--keep); }
-.legenda .t { color: var(--tax); }
 
 
 /* Il grafico: il fatto (bianco, continuo) contro il modello (verde, tratteggiato).
@@ -430,6 +424,9 @@ input[type="checkbox"] { accent-color: var(--keep); width: 1.15rem; height: 1.15
 .g-storico { fill: none; stroke: var(--text); stroke-width: 2; stroke-linejoin: round; }
 .g-decumulo { fill: #fff; opacity: .035; }
 .g-inizio { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+/* Dove finisce il modello e comincia l estrapolazione. */
+.g-limite { stroke: var(--tax); stroke-width: 1; stroke-dasharray: 2 5; opacity: .5; }
+.g-nota-limite { fill: var(--tax); font-family: var(--mono); font-size: 9px; opacity: .8; paint-order: stroke; stroke: var(--ink); stroke-width: 3px; stroke-linejoin: round; }
 /* Si trascina: l area di presa e larga 22 px anche se la riga ne misura 1. */
 .g-presa { fill: transparent; cursor: ew-resize; }
 .g-maniglia { cursor: ew-resize; }
@@ -560,51 +557,6 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
   vertical-align: middle;
 }
 
-/* scenari */
-.scenari {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10.4rem, 1fr));
-  gap: 1rem;
-}
-.scenario {
-  background: var(--ink-2);
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--tono);
-  border-radius: 12px;
-  padding: 1.25rem;
-}
-.scenario header { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
-.scenario h3 { font-size: .95rem; margin: 0; }
-.scenario .cagr { font-family: var(--mono); font-size: .78rem; color: var(--tono); }
-.scenario-cifra {
-  font-family: var(--mono);
-  font-size: clamp(1.5rem, 3.6vw, 1.9rem);
-  white-space: nowrap;
-  font-weight: 700;
-  color: var(--tono);
-  margin: .7rem 0 .2rem;
-  font-variant-numeric: tabular-nums;
-}
-.scenario-cifra span {
-  display: block;
-  font-size: .38em;
-  letter-spacing: .16em;
-  color: var(--faint);
-  font-weight: 500;
-  margin-top: .1rem;
-}
-.scenario-eq { font-family: var(--mono); font-size: .74rem; color: var(--faint); margin: 0 0 .8rem; }
-.scenario-desc { font-size: .84rem; color: var(--muted); margin: 0; }
-.cop { margin-top: 1rem; }
-.cop p { font-size: .78rem; color: var(--muted); margin: .5rem 0 0; }
-.tenuta {
-  font-size: .78rem;
-  margin: 1rem 0 0;
-  padding-top: .8rem;
-  border-top: 1px solid var(--ink-3);
-}
-.tenuta.ok { color: var(--keep); }
-.tenuta.ko { color: var(--ko); }
 
 /* ipotesi e fonti */
 .ipotesi { list-style: none; padding: 0; margin: 0; display: grid; gap: .7rem; }
