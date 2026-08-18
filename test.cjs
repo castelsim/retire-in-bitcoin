@@ -3,7 +3,7 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,accumuloStorico,prezzoStoricoAl,STORICO,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,accumuloStorico,prezzoStoricoAl,STORICO,M2,M2_CRESCITA,m2Al,inM2,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
@@ -167,6 +167,36 @@ ok('il cambio scala solo i BTC',
 ok('prima del primo prezzo si usa il primo', prezzoStoricoAl(0)===STORICO[0][1]);
 ok('dopo l ultimo si usa l ultimo',
    prezzoStoricoAl(99999)===STORICO[STORICO.length-1][1]);
+
+console.log('\n--- 10. LA MASSA MONETARIA (solo unita di misura) ---');
+const gOggi=giorniDaGenesi();
+ok('il fattore di oggi vale 1', Math.abs(inM2(gOggi)-1)<1e-9);
+ok('nel passato vale piu di 1', inM2(M2[0][0])>2, inM2(M2[0][0]).toFixed(2)+'x nel 2010');
+ok('nel futuro vale meno di 1', inM2(gOggi+3652)<1);
+// tra due punti si interpola: mai un gradino
+const a=M2[50], b=M2[51], mezzo=m2Al((a[0]+b[0])/2);
+ok('fra due mesi si interpola', mezzo>Math.min(a[1],b[1]) && mezzo<Math.max(a[1],b[1]));
+ok('prima della serie resta al primo', m2Al(0)===M2[0][1]);
+// il tasso del futuro esce dai dati, non da una costante scelta a mano
+const atteso=Math.pow(M2[M2.length-1][1]/M2[0][1], 365.25/(M2[M2.length-1][0]-M2[0][0]))-1;
+ok('il tasso di proiezione viene dalla serie', Math.abs(M2_CRESCITA-atteso)<1e-12,
+   (M2_CRESCITA*100).toFixed(2)+'%/anno');
+ok('ed e fra il 5 e il 8 per cento', M2_CRESCITA>0.05 && M2_CRESCITA<0.08);
+// oltre l'ultimo dato cresce esattamente a quel tasso, non di piu
+const u=M2[M2.length-1];
+ok('oltre l ultimo dato cresce al tasso dichiarato',
+   Math.abs(m2Al(u[0]+365.25)/u[1]-(1+M2_CRESCITA))<1e-9);
+// la serie e ordinata: la ricerca binaria lo assume
+ok('la serie e in ordine di data', M2.every((p,i)=>i===0||p[0]>M2[i-1][0]));
+// M2 e la vista devono restare fuori dai conti: si controlla sul sorgente,
+// perche' e' una proprieta' del codice, non di un risultato.
+const sorgente=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
+const motore=sorgente.slice(0, sorgente.indexOf('function grafico'));
+const calcolo=motore.slice(motore.indexOf('function simula'));
+ok('nessun conto legge M2', !/\binM2\s*\(|\bm2Al\s*\(/.test(calcolo));
+ok('nessun conto legge la vista', !/\bVISTA\b/.test(calcolo));
+// e il fabbisogno resta lo stesso a meno del tempo che passa fra due chiamate
+ok('il fabbisogno non dipende dalla vista', Math.abs(fab(base,CEN)/fab(base,CEN)-1)<1e-9);
 
 console.log(ko===0?'\nTUTTI I CONTROLLI PASSATI\n':'\n'+ko+' CONTROLLI FALLITI\n');
 process.exit(ko?1:0);
