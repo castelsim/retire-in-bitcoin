@@ -153,22 +153,29 @@ const rettaPura = giorni => Math.pow(10, PL_A + PL_N * Math.log10(giorni));
 const GIORNI_LIMITE = (Date.UTC(ANNO_LIMITE, 0, 1) - GENESI) / 86400000;
 
 /**
- * La retta usata dai conti: legge di potenza fino al 2040, poi la stessa
- * pendenza che aveva lì, in decadimento. Non riaccelera mai.
- */
-/**
- * DOPO IL 2040: CRESCITA REALE ZERO.
+ * DOPO IL 2040: LA CORSA SI ESAURISCE IN CINQUE ANNI, POI PIÙ NIENTE.
  *
- * Il prezzo continua a salire col carovita e basta: in potere d'acquisto
- * resta fermo. È l'ipotesi che non chiede di credere a niente — un bene
- * che ha finito di guadagnare terreno e si limita a conservare valore.
+ * Santostasi dice di non usare la sua curva oltre il 2040. Non dice che da
+ * lì Bitcoin smette di guadagnare valore: dice che non lo sa. Tradurre quel
+ * «non lo so» in uno stop netto produceva un salto indifendibile — 19,5% di
+ * crescita nel 2039, 2% nel 2040 — che nessun fenomeno reale fa.
  *
- * Prima qui c'era una power law smorzata con un esponente scelto a mano,
- * che dava ancora l'8% reale nei primi dieci anni: un parametro arbitrario
- * travestito da modello. Una crescita reale dichiarata si legge e si cambia.
+ * Qui la crescita REALE parte da quella che il modello aveva al 2040 e
+ * scende in linea retta fino a zero in TRANSIZIONE_ANNI. Dopo, il prezzo
+ * segue solo il carovita: in potere d'acquisto resta fermo per sempre.
+ * L'effetto complessivo è modesto e dichiarato — il prezzo reale sale del
+ * 50% fra il 2040 e il 2045, e da lì non si muove più per mezzo secolo.
+ *
+ * ⚠️ Cinque anni non è un numero misurato, e non può esserlo: è la
+ * transizione più corta che tolga la discontinuità. Chi vuole l'ipotesi
+ * precedente la ottiene mettendo 0 qui, e la pagina dice quanto cambia.
  */
-const CRESCITA_REALE_DOPO = 0.00;
+const TRANSIZIONE_ANNI = 5;
 const INFLAZIONE_LUNGA = 0.02;   // il carovita che si assume oltre l'orizzonte del modello
+
+/** La crescita reale che il modello ha proprio nel giorno in cui scade. */
+const CRESCITA_AL_LIMITE =
+  (Math.pow(1 + 365.25 / GIORNI_LIMITE, PL_N)) / (1 + INFLAZIONE_LUNGA) - 1;
 
 // Il corridoio è tarato in dollari e va portato in euro. Se CoinGecko non
 // risponde non abbiamo il cambio: usare 1 significherebbe leggere dollari
@@ -176,15 +183,31 @@ const INFLAZIONE_LUNGA = 0.02;   // il carovita che si assume oltre l'orizzonte 
 // Meglio un cambio dichiarato, misurato il 17 agosto 2026, e dirlo in pagina.
 const CAMBIO_RIPIEGO = 0.868;    // euro per un dollaro
 
-function rettaPowerLaw(giorni) {
+function rettaPowerLaw(giorni, transizione = TRANSIZIONE_ANNI) {
   if (giorni <= GIORNI_LIMITE) return rettaPura(giorni);
   const anni = (giorni - GIORNI_LIMITE) / 365.25;
-  const nominale = (1 + CRESCITA_REALE_DOPO) * (1 + INFLAZIONE_LUNGA) - 1;
-  return rettaPura(GIORNI_LIMITE) * Math.pow(1 + nominale, anni);
+  return rettaPura(GIORNI_LIMITE) * guadagnoReale(anni, transizione)
+       * Math.pow(1 + INFLAZIONE_LUNGA, anni);
+}
+
+/**
+ * Quanto vale in più, in termini reali, dopo `anni` dal limite.
+ *
+ * La crescita reale scende da CRESCITA_AL_LIMITE a zero in T anni, quindi il
+ * guadagno accumulato è exp(∫ln(1+g)) con g lineare. L'integrale ha forma
+ * chiusa — meglio di una somma anno per anno, che qui verrebbe chiamata
+ * migliaia di volte a ogni ridisegno del grafico.
+ */
+function guadagnoReale(anni, transizione = TRANSIZIONE_ANNI) {
+  const T = transizione, g0 = CRESCITA_AL_LIMITE;
+  if (!(T > 0) || !(g0 > 0)) return 1;         // T = 0 rimette lo stop netto
+  const F = v => -T / g0 * (1 + g0 * v) * (Math.log(1 + g0 * v) - 1);
+  return Math.exp(F(Math.max(0, 1 - anni / T)) - F(1));
 }
 
 /** Una linea del corridoio, in dollari: la retta per il suo scarto. */
-const lineaCorridoio = (giorni, perc) => rettaPowerLaw(giorni) * Math.pow(10, perc);
+const lineaCorridoio = (giorni, perc, transizione) =>
+  rettaPowerLaw(giorni, transizione) * Math.pow(10, perc);
 
 /** La crescita istantanea della curva: n/t. Rallenta sempre, per costruzione. */
 const crescitaIstantanea = giorni => PL_N * 365.25 / giorni;
@@ -218,6 +241,8 @@ function posizioneNelCorridoio(prezzoUsd, giornoDelleLinee) {
 // ------------------------------------------------------------
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const fmt = n => new Intl.NumberFormat("it-IT", { maximumFractionDigits: 0 }).format(n);
+// Le leve possono essere tre o quattro: in italiano si scrivono in lettere.
+const QUANTE = { 2: "due", 3: "tre", 4: "quattro", 5: "cinque" };
 // Un anno solo non sono «1 anni»: il verdetto lo legge una persona.
 const inAnni = n => n === 1 ? "1 anno" : fmt(n) + " anni";
 const fmtBTC = n => new Intl.NumberFormat("it-IT", { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(n);
@@ -430,10 +455,10 @@ function integrazioneOttenibile(p, lineaObiettivo, lineaAcquisto, stack, mensile
 }
 
 /** La linea del corridoio di uno scenario, portata nella valuta locale. */
-function lineaDi(p, sc) {
+function lineaDi(p, sc, transizione) {
   const d0 = giorniDaGenesi();
   const cambio = p.cambioUsd || CAMBIO_RIPIEGO;
-  return anni => lineaCorridoio(d0 + anni * 365.25, sc.perc) * cambio;
+  return anni => lineaCorridoio(d0 + anni * 365.25, sc.perc, transizione) * cambio;
 }
 
 /**
@@ -782,7 +807,7 @@ function grafico(base, cambio) {
           <span class="g-leg"><i class="l-storico"></i>prezzo reale</span>
           <span class="g-leg"><i class="l-banda"></i>corridoio, 5°–95° percentile</span>
           <span class="g-leg"><i class="l-centro"></i>mediana, fino al ${ANNO_LIMITE}</span>
-          <span class="g-leg"><i class="l-oltre"></i>dopo: solo carovita</span>
+          <span class="g-leg"><i class="l-oltre"></i>dopo: la corsa si esaurisce in ${TRANSIZIONE_ANNI} anni</span>
           <span class="g-scala">prezzi in scala logaritmica</span>
         </figcaption>
       </figure>
@@ -862,7 +887,7 @@ function render() {
         </div>
       </div>
       <p class="nota">${!prezziLive.usd ? `<b>Cambio non disponibile</b>: si assume ${fmtPct(CAMBIO_RIPIEGO - 1).replace("−", "")} — cioè ${CAMBIO_RIPIEGO.toString().replace(".", ",")} euro per dollaro, il valore del 17 agosto 2026. ` : ""}${r.attesa > 0
-        ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE ? ` Dal <b>${ANNO_LIMITE}</b> in poi Santostasi dice di non usare la legge di potenza: da lì il prezzo cresce solo col carovita, quindi ogni anno di prelievo costa sempre la stessa quantità di bitcoin: il totale scende solo perché gli anni da coprire sono meno.` : ""}`
+        ? `Le tre linee sono i prezzi che il modello dà per il <b>${annoInizio}</b>, l'anno in cui cominci a vendere: muovi la barra sul grafico e cambiano. Oggi Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta, cioè nella parte bassa della fascia.${annoInizio > ANNO_LIMITE ? ` Dal <b>${ANNO_LIMITE}</b> in poi Santostasi dice di non usare la legge di potenza. Qui la crescita non si ferma di colpo — sarebbe un salto che nessun mercato fa — ma scende in linea retta fino a zero in <b>${TRANSIZIONE_ANNI} anni</b>: il prezzo guadagna ancora ${fmtPct(guadagnoReale(TRANSIZIONE_ANNI) - 1)} in potere d'acquisto e da lì segue solo il carovita, per sempre.` : ""}`
         : `Le tre linee sono i prezzi di oggi. Bitcoin sta al <b>${fmtPct(pos.rapporto)}</b> della retta di regressione, nella parte bassa della fascia.`}</p>
     </div>`;
   }
@@ -873,8 +898,12 @@ function render() {
   const suMediana = fabbisogno(base, lineaDi(base, CEN)).btcNecessari;
   const rif = r.btcNecessari;
   const etaLeva = Math.min(90, base.etaFine - 5);
+  // Con lo stop netto (transizione zero) si torna all'ipotesi precedente:
+  // è la scelta che pesa di più, perché nel decumulo cade quasi tutto dopo il 2040.
+  const stopNetto = fabbisogno(base, lineaDi(base, RIF, 0)).btcNecessari;
   const leve = [
     ["sulla mediana invece che sul fondo", suMediana / rif - 1],
+    [`se dal ${ANNO_LIMITE} il prezzo si fermasse di colpo`, stopNetto / rif - 1],
     ["senza tenere il crollo del 70%", senzaCrollo / rif - 1],
   ];
   // La terza leva solo se accorciare l'orizzonte lascia almeno un prelievo.
@@ -883,7 +912,7 @@ function render() {
       fabbisogno({ ...base, etaFine: etaLeva }, lineaDi(base, RIF)).btcNecessari / rif - 1]);
   }
   const leveBox = `
-    <p class="leve">Il numero dipende da tre scelte, non da fatti: ${leve
+    <p class="leve">Il numero dipende da ${QUANTE[leve.length] || leve.length} scelte, non da fatti: ${leve
       .map(([n, d]) => `<span>${n} <b>${d < 0 ? "−" : "+"}${Math.abs(d * 100).toFixed(0)}%</b></span>`)
       .join(" · ")}</p>`;
 

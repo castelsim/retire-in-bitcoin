@@ -3,7 +3,7 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,STORICO,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,guadagnoReale,rettaPowerLaw,CRESCITA_AL_LIMITE,TRANSIZIONE_ANNI,GIORNI_LIMITE,INFLAZIONE_LUNGA,ANNO_LIMITE,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,STORICO,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
@@ -55,12 +55,11 @@ console.log('\n--- 4. COME REAGISCE ---');
 ok('chiedere il doppio costa circa il doppio', Math.abs(fab({...base,nettoAnnuo:20000},CEN)/r.btcNecessari-2)<0.1);
 ok('cominciare piu tardi costa meno', fab({...base,etaInizio:65},CEN)<r.btcNecessari);
 ok('cominciare subito costa molto di piu', fab({...base,etaInizio:35},CEN)>r.btcNecessari*3);
-// Con crescita reale zero dopo il 2040 il prezzo tiene solo il passo del
-// carovita: rimandare l'inizio oltre quella data non fa piu risparmiare BTC.
-// Ha effetto solo la durata del decumulo, non la data.
+// Esaurita la transizione il prezzo tiene solo il passo del carovita:
+// rimandare l'inizio oltre quella data non fa piu risparmiare BTC.
 const a2051=fab({...base,eta:25},CEN), a2041=fab({...base,eta:35},CEN);
-ok('dopo il 2040 rimandare non aiuta piu (crescita reale zero)',
-   Math.abs(a2051/a2041-1)<0.05, 'scarto '+((a2051/a2041-1)*100).toFixed(1)+'%');
+ok('finita la transizione rimandare non aiuta piu',
+   Math.abs(a2051/a2041-1)<0.10, 'scarto '+((a2051/a2041-1)*100).toFixed(1)+'%');
 ok('ma cominciare prima del 2040 costa di piu', fab({...base,eta:45},CEN)>a2041);
 ok('la linea alta chiede meno della bassa', fab(base,RES)<fab(base,CEN) && fab(base,CEN)<fab(base,SUP));
 ok('Italia costa piu della Germania', r.btcNecessari>fab({...base,paese:'Germania'},CEN));
@@ -147,6 +146,34 @@ const tab=Object.keys(PAESI).map(n=>({n,v:fab({...base,paese:n},CEN)})).sort((a,
 tab.forEach(x=>console.log('     '+x.n.padEnd(11)+x.v.toFixed(6)+' BTC'));
 ok('nessuno fuori scala', tab[5].v/tab[0].v<2, 'rapporto '+(tab[5].v/tab[0].v).toFixed(2));
 ok('i due esenti sono i piu economici', ['Portogallo','Germania'].includes(tab[0].n)&&['Portogallo','Germania'].includes(tab[1].n));
+
+console.log('\n--- 9. LA TRANSIZIONE DOPO IL 2040 ---');
+ok('al limite il guadagno reale e 1', Math.abs(guadagnoReale(0)-1)<1e-12);
+ok('finita la transizione non cresce piu',
+   Math.abs(guadagnoReale(TRANSIZIONE_ANNI)-guadagnoReale(200))<1e-9);
+ok('durante la transizione cresce', guadagnoReale(TRANSIZIONE_ANNI/2)>1 &&
+   guadagnoReale(TRANSIZIONE_ANNI/2)<guadagnoReale(TRANSIZIONE_ANNI));
+ok('e il guadagno resta modesto', guadagnoReale(200)<2,
+   (guadagnoReale(200)).toFixed(3)+'x in termini reali');
+// transizione zero = la vecchia ipotesi dello stop netto
+ok('con transizione zero il prezzo si ferma di colpo', guadagnoReale(10,0)===1);
+// il punto della modifica: niente salto di crescita attorno al limite
+const cres=(g,T)=>rettaPowerLaw(g+365.25,T)/rettaPowerLaw(g,T)-1;
+const prima=cres(GIORNI_LIMITE-365.25), dopo=cres(GIORNI_LIMITE+1);
+ok('la crescita non salta al limite', Math.abs(prima-dopo)<0.05,
+   (prima*100).toFixed(1)+'% prima, '+(dopo*100).toFixed(1)+'% dopo');
+ok('con lo stop netto invece saltava', (()=>{
+   const p0=cres(GIORNI_LIMITE-365.25,0), d0=cres(GIORNI_LIMITE+1,0);
+   return p0-d0>0.15; })(), 'era il difetto: da ~20% a 2% in un anno');
+// la crescita scende sempre, non riaccelera mai
+const serie=Array.from({length:60},(_,k)=>cres(GIORNI_LIMITE-365.25*3+k*365.25));
+ok('la crescita non riaccelera mai', serie.every((v,k,a)=>k===0||v<=a[k-1]+1e-9));
+ok('e finisce esattamente sul carovita',
+   Math.abs(serie[serie.length-1]-INFLAZIONE_LUNGA)<1e-6);
+// la leva mostrata in pagina: lo stop netto chiede piu bitcoin
+const conT=fab(base,SUP), senzaT=fabbisogno(base,lineaDi(base,SUP,0)).btcNecessari;
+ok('lo stop netto chiede piu bitcoin', senzaT>conT*1.2,
+   '+'+((senzaT/conT-1)*100).toFixed(0)+'%');
 
 console.log(ko===0?'\nTUTTI I CONTROLLI PASSATI\n':'\n'+ko+' CONTROLLI FALLITI\n');
 process.exit(ko?1:0);
