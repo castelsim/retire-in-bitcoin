@@ -3,7 +3,7 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,STORICO,M2,M2_CRESCITA,m2Al,inM2,supplyBTC,m2PerBitcoin,annoSfondamento,HALVING,NOW_YEAR,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,STORICO,M2,M2_CRESCITA,m2Al,supplyBTC,m2PerBitcoin,annoSfondamento,HALVING,NOW_YEAR,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
@@ -150,9 +150,6 @@ ok('i due esenti sono i piu economici', ['Portogallo','Germania'].includes(tab[0
 
 console.log('\n--- 10. LA MASSA MONETARIA (solo unita di misura) ---');
 const gOggi=giorniDaGenesi();
-ok('il fattore di oggi vale 1', Math.abs(inM2(gOggi)-1)<1e-9);
-ok('nel passato vale piu di 1', inM2(M2[0][0])>2, inM2(M2[0][0]).toFixed(2)+'x nel 2010');
-ok('nel futuro vale meno di 1', inM2(gOggi+3652)<1);
 // tra due punti si interpola: mai un gradino
 const a=M2[50], b=M2[51], mezzo=m2Al((a[0]+b[0])/2);
 ok('fra due mesi si interpola', mezzo>Math.min(a[1],b[1]) && mezzo<Math.max(a[1],b[1]));
@@ -173,11 +170,10 @@ ok('la serie e in ordine di data', M2.every((p,i)=>i===0||p[0]>M2[i-1][0]));
 const sorgente=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const motore=sorgente.slice(0, sorgente.indexOf('function grafico'));
 const calcolo=motore.slice(motore.indexOf('function simula'));
-ok('nessun conto legge M2', !/\binM2\s*\(|\bm2Al\s*\(/.test(calcolo));
-ok('nessun conto legge la vista', !/\bVISTA\b/.test(calcolo));
+ok('nessun conto legge M2', !/\bm2Al\s*\(/.test(calcolo));
 // e il fabbisogno resta lo stesso a meno del tempo che passa fra due chiamate
 ok('nessun conto legge il tetto', !/\bm2PerBitcoin\s*\(|\bsupplyBTC\s*\(/.test(calcolo));
-ok('il fabbisogno non dipende dalla vista', Math.abs(fab(base,CEN)/fab(base,CEN)-1)<1e-9);
+ok('il fabbisogno resta lo stesso', Math.abs(fab(base,CEN)/fab(base,CEN)-1)<1e-9);
 
 console.log('\n--- 11. IL TETTO: M2 PER BITCOIN ESISTENTE ---');
 const gg=giorniDaGenesi();

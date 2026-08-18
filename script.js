@@ -176,10 +176,6 @@ function annoSfondamento(perc, annoFine) {
   return 0;
 }
 
-// Il fattore che riporta un prezzo di allora alla massa monetaria di oggi:
-// «quel prezzo, se i dollari fossero quelli di adesso».
-function inM2(giorni) { return m2Al(giorniDaGenesi()) / m2Al(giorni); }
-
 // Primo anno intero coperto dai prezzi veri: la serie parte ad agosto 2010,
 // quindi il 2010 sarebbe un anno mozzo e il grafico comincia dal successivo.
 const STORICO_ANNO_DA = new Date(GENESI + STORICO[0][0] * 86400000).getUTCFullYear() + 1;
@@ -205,10 +201,6 @@ const RIFERIMENTO = 0;   // indice in SCENARI: 0 supporto · 1 centro · 2 resis
  * manovra — il decumulo — non dove fai molti tentativi.
  */
 const ACCUMULO = 1;
-
-// Come si guarda il grafico: "euro" e' il prezzo nominale, "m2" lo riporta
-// alla massa monetaria di oggi. Cambia solo il disegno, mai i conti.
-let VISTA = "euro";
 
 // ------------------------------------------------------------
 // IL LIMITE CHE PONE L'AUTORE STESSO
@@ -757,9 +749,6 @@ function grafico(base, cambio) {
   const annoFine = NOW_YEAR + (base.etaFine - base.eta);
   const annoAsseDa = STORICO_ANNO_DA;
   const px = a => ML + (a - annoAsseDa) / (annoFine - annoAsseDa) * (W - ML - MR);
-  // In unita' di M2 ogni prezzo viene riportato alla massa monetaria di oggi:
-  // il fattore vale 1 nella vista in euro, cosi' il resto del disegno non cambia.
-  const fatM2 = g => VISTA === "m2" ? inM2(g) : 1;
   // Il fondo scala e' il punto piu' alto della curva, non il suo ultimo punto:
   // in unita' di M2 il massimo cade verso il 2040 e la banda usciva dal riquadro.
   // Va calcolato nella stessa unita' dei dati, cambio compreso: prima era in
@@ -767,8 +756,8 @@ function grafico(base, cambio) {
   let maxP = 0;
   for (let a = annoAsseDa; a <= annoFine; a++) {
     const g = giorniDaGenesi() + (a - NOW_YEAR) * 365.25;
-    maxP = Math.max(maxP, lineaCorridoio(g, SCENARI[2].perc) * cambio * fatM2(g),
-                          m2PerBitcoin(g) * cambio * fatM2(g));
+    maxP = Math.max(maxP, lineaCorridoio(g, SCENARI[2].perc) * cambio,
+                          m2PerBitcoin(g) * cambio);
   }
   const minP = 0.05;
   const py = v => {
@@ -782,14 +771,14 @@ function grafico(base, cambio) {
   for (let a = annoAsseDa; a <= annoFine; a++) anni.push(a);
   const linea = perc => anni.map(a => {
     const g = giorniDi(a);
-    return `${px(a).toFixed(1)},${py(lineaCorridoio(g, perc) * cambio * fatM2(g)).toFixed(1)}`;
+    return `${px(a).toFixed(1)},${py(lineaCorridoio(g, perc) * cambio).toFixed(1)}`;
   });
   const sup = linea(SCENARI[0].perc), cen = linea(SCENARI[1].perc), res = linea(SCENARI[2].perc);
   // Il tetto: tutta la massa monetaria americana divisa per i bitcoin che
   // esistono. Stessa unita' del prezzo, quindi stesso asse.
   const tetto = anni.map(a => {
     const g = giorniDi(a);
-    return `${px(a).toFixed(1)},${py(m2PerBitcoin(g) * cambio * fatM2(g)).toFixed(1)}`;
+    return `${px(a).toFixed(1)},${py(m2PerBitcoin(g) * cambio).toFixed(1)}`;
   });
   // La mediana si spezza al 2040: prima è il modello, dopo è la prosecuzione.
   const iLimite = Math.max(1, anni.findIndex(a => a >= ANNO_LIMITE));
@@ -798,7 +787,7 @@ function grafico(base, cambio) {
 
   // la storia vera
   const st = STORICO.filter(([g]) => g / 365.25 + 2009 >= annoAsseDa)
-    .map(([g, v]) => `${px(2009 + g / 365.25).toFixed(1)},${py(v * cambio * fatM2(g)).toFixed(1)}`);
+    .map(([g, v]) => `${px(2009 + g / 365.25).toFixed(1)},${py(v * cambio).toFixed(1)}`);
 
   // Oggi non è "l'inizio del 2026": è il punto dell'anno in cui siamo davvero.
   // La riga del primo prelievo parte da lì, così quando la porti al minimo
@@ -854,7 +843,7 @@ function grafico(base, cambio) {
             const sym = PAESI[base.paese].sym;
             const breve = v => v >= 1e6 ? (v / 1e6).toFixed(1).replace(".", ",") + " mln" : fmt(v);
             return SCENARI.map((sc, i) => {
-              const v = lineaCorridoio(g, sc.perc) * cambio * fatM2(g);
+              const v = lineaCorridoio(g, sc.perc) * cambio;
               const y = py(v) + (i === 0 ? 14 : i === 2 ? -7 : 4);
               // A destra della riga: è lì che guardi mentre la trascini verso il futuro.
               return `<circle cx="${inizioX.toFixed(1)}" cy="${py(v).toFixed(1)}" r="2.5" class="g-punto" />
@@ -887,9 +876,7 @@ function grafico(base, cambio) {
               ${sf[1] ? `la mediana nel ${sf[1]}` : "la mediana no"},
               ${sf[2] ? `il tetto già nel ${sf[2]}` : "il tetto nemmeno"}</span>`;
           })()}
-          <span class="g-scala">${VISTA === "m2"
-            ? `prezzi riportati alla massa monetaria di oggi (M2 Stati Uniti; oltre l'ultimo dato, proiettata al +${(M2_CRESCITA * 100).toFixed(1).replace(".", ",")}%/anno, la sua media dal 2010) · scala logaritmica`
-            : "prezzi in scala logaritmica"}</span>
+          <span class="g-scala">prezzi in scala logaritmica</span>
         </figcaption>
       </figure>
     </section>`;
@@ -993,7 +980,6 @@ function render() {
       .map(([n, d]) => `<span>${n} <b>${d < 0 ? "−" : "+"}${Math.abs(d * 100).toFixed(0)}%</b></span>`)
       .join(" · ")}</p>`;
 
-  segnaVista();
   $grafico.innerHTML = grafico(base, cambio);
   $verdetto.innerHTML = testa;
   $corridoio.innerHTML = corridoioBox + leveBox;
@@ -1078,20 +1064,6 @@ $("planner").addEventListener("change", e => {
   ridisegna();
 });
 
-// L'interruttore dell'unita': cambia il disegno, non i conti.
-document.querySelectorAll(".uv").forEach(b => b.addEventListener("click", () => {
-  if (VISTA === b.dataset.vista) return;
-  VISTA = b.dataset.vista;
-  segnaVista();
-  render();
-  scriviIndirizzo();
-}));
-function segnaVista() {
-  document.querySelectorAll(".uv").forEach(b =>
-    b.setAttribute("aria-pressed", String(b.dataset.vista === VISTA)));
-}
-segnaVista();
-
 let attesaResize = null;
 window.addEventListener("resize", () => {
   clearTimeout(attesaResize);
@@ -1134,7 +1106,6 @@ function leggiIndirizzo() {
     if (id === "paese" && !PAESI[v]) continue;
     el.value = v; trovato = true;
   }
-  if (q.get("u") === "m2") VISTA = "m2";
   return trovato;
 }
 
@@ -1147,7 +1118,6 @@ function scriviIndirizzo() {
       const el = $(id);
       if (el && el.value !== "") q.set(chiave, el.value);
     }
-    if (VISTA === "m2") q.set("u", "m2");
     // replaceState e non pushState: non si riempie la cronologia a ogni tasto.
     history.replaceState(null, "", location.pathname + "?" + q.toString());
   }, 400);

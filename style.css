@@ -520,31 +520,6 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .leve span { white-space: nowrap; }
 .leve b { color: var(--tax); font-family: var(--mono); }
 
-/* L'unita' di misura del grafico: due voci, quella attiva accesa. */
-.unita-vista {
-  display: flex;
-  gap: .25rem;
-  margin-left: auto;     /* in coda alla riga dei comandi: non ruba altezza */
-}
-.uv {
-  font-family: var(--mono);
-  font-size: .72rem;
-  letter-spacing: .04em;
-  padding: 0 .7rem;
-  min-height: 44px;      /* si tocca col dito */
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: none;
-  color: var(--faint);
-  cursor: pointer;
-}
-.uv:hover { color: var(--text); }
-.uv[aria-pressed="true"] {
-  color: var(--ink);
-  background: var(--keep);
-  border-color: var(--keep);
-}
-
 /* Il corridoio: dove sta il prezzo fra il fondo e il tetto della fascia */
 .corridoio { margin: 1.5rem 0 0; }
 .corr-scala {
