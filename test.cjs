@@ -3,7 +3,7 @@ const fs=require('fs'), path=require('path'), os=require('os');
 const src=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
 const tmp=path.join(os.tmpdir(),'ribtc-puro.cjs');
 fs.writeFileSync(tmp, src.split('// Prezzo di oggi')[0] +
- '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,STORICO,M2,M2_CRESCITA,m2Al,supplyBTC,m2PerBitcoin,annoSfondamento,HALVING,NOW_YEAR,PL_N,PL_R2};');
+ '\nmodule.exports={FISCO,PAESI,SCENARI,ETA_FINE_DEFAULT,imposta,lordoPerNetto,simula,fabbisogno,lineaDi,testTenuta,capitaleAntiCrollo,primaEtaSufficiente,pianoDiAccumulo,fabbisognoLiscio,rettaPowerLaw,lineaCorridoio,crescitaIstantanea,posizioneNelCorridoio,giorniDaGenesi,STORICO,PL_N,PL_R2};');
 const M=require(tmp); Object.assign(globalThis,M);
 
 let ko=0; const ok=(n,c,d='')=>{console.log((c?'  ok  ':'  KO  ')+n+(d?' · '+d:'')); if(!c)ko++;};
@@ -147,56 +147,6 @@ const tab=Object.keys(PAESI).map(n=>({n,v:fab({...base,paese:n},CEN)})).sort((a,
 tab.forEach(x=>console.log('     '+x.n.padEnd(11)+x.v.toFixed(6)+' BTC'));
 ok('nessuno fuori scala', tab[5].v/tab[0].v<2, 'rapporto '+(tab[5].v/tab[0].v).toFixed(2));
 ok('i due esenti sono i piu economici', ['Portogallo','Germania'].includes(tab[0].n)&&['Portogallo','Germania'].includes(tab[1].n));
-
-console.log('\n--- 10. LA MASSA MONETARIA (solo unita di misura) ---');
-const gOggi=giorniDaGenesi();
-// tra due punti si interpola: mai un gradino
-const a=M2[50], b=M2[51], mezzo=m2Al((a[0]+b[0])/2);
-ok('fra due mesi si interpola', mezzo>Math.min(a[1],b[1]) && mezzo<Math.max(a[1],b[1]));
-ok('prima della serie resta al primo', m2Al(0)===M2[0][1]);
-// il tasso del futuro esce dai dati, non da una costante scelta a mano
-const atteso=Math.pow(M2[M2.length-1][1]/M2[0][1], 365.25/(M2[M2.length-1][0]-M2[0][0]))-1;
-ok('il tasso di proiezione viene dalla serie', Math.abs(M2_CRESCITA-atteso)<1e-12,
-   (M2_CRESCITA*100).toFixed(2)+'%/anno');
-ok('ed e fra il 5 e il 8 per cento', M2_CRESCITA>0.05 && M2_CRESCITA<0.08);
-// oltre l'ultimo dato cresce esattamente a quel tasso, non di piu
-const u=M2[M2.length-1];
-ok('oltre l ultimo dato cresce al tasso dichiarato',
-   Math.abs(m2Al(u[0]+365.25)/u[1]-(1+M2_CRESCITA))<1e-9);
-// la serie e ordinata: la ricerca binaria lo assume
-ok('la serie e in ordine di data', M2.every((p,i)=>i===0||p[0]>M2[i-1][0]));
-// M2 e la vista devono restare fuori dai conti: si controlla sul sorgente,
-// perche' e' una proprieta' del codice, non di un risultato.
-const sorgente=fs.readFileSync(path.join(__dirname,'script.js'),'utf8');
-const motore=sorgente.slice(0, sorgente.indexOf('function grafico'));
-const calcolo=motore.slice(motore.indexOf('function simula'));
-ok('nessun conto legge M2', !/\bm2Al\s*\(/.test(calcolo));
-// e il fabbisogno resta lo stesso a meno del tempo che passa fra due chiamate
-ok('nessun conto legge il tetto', !/\bm2PerBitcoin\s*\(|\bsupplyBTC\s*\(/.test(calcolo));
-ok('il fabbisogno resta lo stesso', Math.abs(fab(base,CEN)/fab(base,CEN)-1)<1e-9);
-
-console.log('\n--- 11. IL TETTO: M2 PER BITCOIN ESISTENTE ---');
-const gg=giorniDaGenesi();
-ok('oggi esistono circa 20,1 mln di bitcoin',
-   Math.abs(supplyBTC(gg)/1e6-20.07)<0.1, (supplyBTC(gg)/1e6).toFixed(2)+' mln');
-// ai quattro halving avvenuti la somma emessa e' nota con esattezza
-[[1,10.5],[2,15.75],[3,18.375],[4,19.6875]].forEach(([i,atteso])=>
-  ok('all halving '+i+' erano '+atteso+' mln',
-     Math.abs(supplyBTC(HALVING[i])/1e6-atteso)<0.001));
-ok('non si superano mai 21 mln', supplyBTC(gg+365.25*200)<=21e6);
-ok('la supply non cala mai',
-   Array.from({length:60},(_,k)=>supplyBTC(gg+k*365.25)).every((v,k,a)=>k===0||v>=a[k-1]));
-// il tetto e' in dollari per bitcoin, la stessa unita' del prezzo
-ok('oggi il tetto sta fra 1,0 e 1,3 mln di dollari',
-   m2PerBitcoin(gg)>1.0e6 && m2PerBitcoin(gg)<1.3e6, Math.round(m2PerBitcoin(gg)).toLocaleString('it-IT')+' \$');
-// col tempo M2 cresce e la supply si ferma: il tetto sale
-ok('nel futuro il tetto sale', m2PerBitcoin(gg+3652)>m2PerBitcoin(gg));
-// la linea su cui si tara l obiettivo deve restare sotto il tetto
-ok('il fondo del corridoio non sfonda il tetto', annoSfondamento(SCENARI[0].perc,2091)===0);
-const sM=annoSfondamento(SCENARI[1].perc,2091), sR=annoSfondamento(SCENARI[2].perc,2091);
-ok('la mediana lo sfonda', sM>NOW_YEAR&&sM<2091, String(sM));
-ok('la resistenza lo sfonda prima della mediana', sR>0&&sR<sM, sR+' contro '+sM);
-ok('su un orizzonte corto nessuno sfonda', annoSfondamento(SCENARI[1].perc,2028)===0);
 
 console.log(ko===0?'\nTUTTI I CONTROLLI PASSATI\n':'\n'+ko+' CONTROLLI FALLITI\n');
 process.exit(ko?1:0);

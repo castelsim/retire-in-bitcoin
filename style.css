@@ -487,23 +487,6 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .l-centro { background: repeating-linear-gradient(90deg, var(--keep) 0 6px, transparent 6px 10px); }
 .l-oltre { background: repeating-linear-gradient(90deg, var(--muted) 0 1px, transparent 1px 5px); }
 .l-banda { background: var(--keep); opacity: .3; height: 10px !important; border-radius: 2px; }
-/* Il tetto: viola e tratteggio lungo. Si distingue dagli scenari per forma
-   oltre che per colore, perche' non e' uno scenario ma un termine di paragone. */
-.l-tetto { background: repeating-linear-gradient(90deg, var(--hope) 0 7px, transparent 7px 11px); }
-.g-tetto {
-  fill: none;
-  stroke: var(--hope);
-  stroke-width: 1.2;
-  stroke-dasharray: 7 4;
-  opacity: .85;      /* sopra la banda: se no sparisce proprio dove incrocia */
-}
-/* La riga che rende la linea viola un metro, non un ornamento. */
-.g-tetto-nota { flex-basis: 100%; color: var(--hope); opacity: .9; }
-.g-tetto-nota b { font-weight: 600; }
-.g-scala { flex-basis: 100%; }
-
-
-
 /* La fascia sta sotto il grafico, nella prima schermata: si legge di colpo
    dove sta il prezzo fra il fondo e il tetto. */
 .corridoio-testa { margin: .9rem 0 0; }

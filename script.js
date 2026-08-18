@@ -104,78 +104,6 @@ const SCENARI = [
 // Serve a far vedere che la curva descrive dei dati, non un'idea.
 // eslint-disable-next-line prefer-const
 let STORICO = [[605,0.07],[635,0.06],[666,0.19],[696,0.28],[727,0.3],[758,0.48],[786,0.96],[817,0.8],[847,3.05],[878,9.12],[908,17.35],[939,14.06],[970,9.11],[1000,4.94],[1031,3.59],[1061,2.98],[1092,4.47],[1123,5.61],[1152,4.98],[1183,4.86],[1213,5.01],[1244,5.18],[1274,6.67],[1305,9.22],[1336,10.91],[1366,12.49],[1397,10.92],[1427,12.61],[1458,13.57],[1489,20.11],[1517,31.27],[1548,92.5],[1578,145],[1609,129],[1639,94.99],[1670,108],[1701,125],[1731,127],[1762,206],[1792,1134],[1823,736],[1854,800],[1882,583],[1913,459],[1943,448],[1974,621],[2004,600],[2035,563],[2066,501],[2096,374],[2127,345],[2157,376],[2188,311],[2219,227],[2247,252],[2278,248],[2308,226],[2339,232],[2369,256],[2400,288],[2431,228],[2461,237],[2492,328],[2522,371],[2553,428],[2584,377],[2613,432],[2644,414],[2674,456],[2705,526],[2735,636],[2766,655],[2797,576],[2827,604],[2858,697],[2888,730],[2919,958],[2950,920],[2978,1194],[3009,1035],[3039,1333],[3070,2205],[3100,2542],[3131,2739],[3162,4583],[3192,4164],[3223,6133],[3253,9646],[3284,12613],[3315,10083],[3343,10629],[3374,6854],[3404,9398],[3435,7387],[3465,6223],[3496,8171],[3527,6987],[3557,6593],[3588,6302],[3618,4279],[3649,3865],[3680,3470],[3708,3833],[3739,4114],[3769,5261],[3800,8272],[3830,11890],[3861,9589],[3892,9578],[3922,8057],[3953,9165],[3983,7757],[4014,7220],[4045,9502],[4074,8712],[4105,6405],[4135,8778],[4166,9698],[4196,9185],[4227,11115],[4258,11708],[4288,10841],[4319,13565],[4349,18192],[4380,28857],[4411,34318],[4439,46156],[4470,58730],[4500,53584],[4531,35685],[4561,35848],[4592,42214],[4623,47075],[4653,41522],[4684,61731],[4714,57828],[4745,47133],[4776,37919],[4804,37705],[4835,47064],[4865,38596],[4896,31716],[4926,20086],[4957,23648],[4988,19793],[5018,19599],[5049,20628],[5079,16433],[5110,16600],[5141,22836],[5169,23498],[5200,28033],[5230,29245],[5261,27704],[5291,30449],[5322,29275],[5353,27301],[5383,26917],[5414,34501],[5444,37867],[5475,42148],[5506,42951],[5535,62499],[5566,69651],[5596,63833],[5627,68352],[5657,60871],[5688,66180],[5719,59108],[5749,65621],[5780,72330],[5810,97504],[5841,92653],[5872,104744],[5900,84646],[5931,82338],[5961,94275],[5992,104028],[6022,108386],[6053,117829],[6084,108791],[6114,114404],[6145,108303],[6175,90831],[6206,88424],[6237,84120],[6265,65867],[6296,66694],[6326,75782],[6357,73755],[6387,60136],[6418,64721],[6434,63024]];
-// ------------------------------------------------------------
-// La massa monetaria (M2 degli Stati Uniti, fonte FRED serie M2SL,
-// miliardi di dollari, un punto al mese dal 2010, scaricata il 18/08/2026).
-//
-// NON entra in nessun conto: serve solo a cambiare l'unita' di misura del
-// grafico. Misurato il 18/08/2026 su 193 mesi, M2 non predice Bitcoin —
-// il rendimento a tre mesi contro la variazione di M2 da +0,10 al massimo
-// su qualunque ritardo fra 0 e 12 mesi, e su osservazioni non sovrapposte
-// resta sotto la soglia di significativita'. Chi la usa come previsione
-// sceglie il ritardo dopo aver visto i dati. Qui fa un'altra cosa: dice
-// quanta parte della salita in dollari erano dollari in piu'.
-// ------------------------------------------------------------
-const M2 = [[363,8473],[394,8523],[422,8519],[453,8554],[483,8612],[514,8631],[544,8642],[575,8690],[606,8720],[636,8770],[667,8790],[697,8822],[728,8844],[759,8910],[787,8968],[818,9034],[848,9109],[879,9184],[909,9347],[940,9532],[971,9553],[1001,9586],[1032,9640],[1062,9684],[1093,9753],[1124,9806],[1153,9849],[1184,9905],[1214,9952],[1245,10024],[1275,10076],[1306,10148],[1337,10228],[1367,10294],[1398,10366],[1428,10485],[1459,10502],[1490,10523],[1518,10579],[1549,10609],[1579,10646],[1610,10706],[1640,10743],[1671,10804],[1702,10866],[1732,10989],[1763,11000],[1793,11062],[1824,11128],[1855,11192],[1883,11229],[1914,11276],[1944,11343],[1975,11398],[2005,11452],[2036,11478],[2067,11521],[2097,11596],[2128,11639],[2158,11721],[2189,11806],[2220,11921],[2248,11919],[2279,11953],[2309,11982],[2340,12021],[2370,12064],[2401,12110],[2432,12173],[2462,12228],[2493,12323],[2523,12394],[2554,12522],[2585,12604],[2614,12662],[2645,12742],[2675,12801],[2706,12849],[2736,12907],[2767,12987],[2798,13053],[2828,13124],[2859,13214],[2889,13241],[2920,13319],[2951,13395],[2979,13465],[3010,13520],[3040,13567],[3071,13577],[3101,13638],[3132,13695],[3163,13743],[3193,13802],[3224,13849],[3254,13887],[3285,13902],[3316,13950],[3344,14014],[3375,14035],[3405,14091],[3436,14133],[3466,14170],[3497,14221],[3528,14244],[3558,14258],[3589,14288],[3619,14392],[3650,14460],[3681,14507],[3709,14560],[3740,14594],[3770,14703],[3801,14799],[3831,14883],[3862,14974],[3893,15047],[3923,15186],[3954,15301],[3984,15352],[4015,15425],[4046,15493],[4075,16034],[4106,17064],[4136,17932],[4167,18180],[4197,18331],[4228,18413],[4259,18605],[4289,18760],[4320,19002],[4350,19119],[4381,19375],[4412,19641],[4440,19874],[4471,20174],[4501,20457],[4532,20472],[4562,20629],[4593,20843],[4624,20984],[4654,21163],[4685,21340],[4715,21502],[4746,21646],[4777,21725],[4805,21787],[4836,21768],[4866,21717],[4897,21647],[4927,21649],[4958,21642],[4989,21541],[5019,21464],[5050,21409],[5080,21293],[5111,21274],[5142,21240],[5170,20942],[5201,20758],[5231,20830],[5262,20799],[5292,20792],[5323,20782],[5354,20754],[5384,20738],[5415,20750],[5445,20780],[5476,20836],[5507,20922],[5536,20966],[5567,20956],[5597,21022],[5628,21071],[5658,21099],[5689,21192],[5720,21276],[5750,21337],[5781,21455],[5811,21488],[5842,21539],[5873,21607],[5901,21684],[5932,21771],[5962,21836],[5993,21943],[6023,22026],[6054,22092],[6085,22176],[6115,22250],[6146,22280],[6176,22355],[6207,22420],[6238,22620],[6266,22676],[6297,22800],[6327,23056],[6358,23155]];
-
-// Il tasso per il futuro si ricava dalla serie stessa, non si sceglie:
-// e' la sua crescita media sul tratto incorporato (+6,3%/anno).
-const M2_CRESCITA = Math.pow(M2[M2.length - 1][1] / M2[0][1],
-                             365.25 / (M2[M2.length - 1][0] - M2[0][0])) - 1;
-
-// Quanta massa monetaria c'era (o ci sara') in un dato giorno. Fra due punti
-// si interpola; oltre l'ultimo si prosegue al tasso medio, dichiarato in
-// legenda; prima del primo si resta fermi al primo, che e' il 2010.
-function m2Al(giorni) {
-  if (giorni <= M2[0][0]) return M2[0][1];
-  const ultimo = M2[M2.length - 1];
-  if (giorni >= ultimo[0]) return ultimo[1] * Math.pow(1 + M2_CRESCITA, (giorni - ultimo[0]) / 365.25);
-  let lo = 0, hi = M2.length - 1;
-  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (M2[mid][0] <= giorni) lo = mid; else hi = mid; }
-  const [g0, v0] = M2[lo], [g1, v1] = M2[hi];
-  return v0 + (v1 - v0) * (giorni - g0) / (g1 - g0);
-}
-
-// Quanti bitcoin esistevano (o esisteranno) a una certa data. Le prime cinque
-// date sono quelle vere degli halving; le successive stanno a 210.000 blocchi
-// l'una dall'altra, cioe' circa 1.458 giorni. Dentro ogni epoca l'emissione e'
-// costante, quindi fra un halving e l'altro si interpola.
-const HALVING = (() => {
-  const g = [Date.UTC(2009, 0, 3), Date.UTC(2012, 10, 28), Date.UTC(2016, 6, 9),
-             Date.UTC(2020, 4, 11), Date.UTC(2024, 3, 20)]
-            .map(d => (d - GENESI) / 86400000);
-  while (g.length < 34) g.push(g[g.length - 1] + 1458);   // fino oltre il 2140
-  return g;
-})();
-
-function supplyBTC(giorni) {
-  let i = 0;
-  while (i < HALVING.length - 1 && giorni >= HALVING[i + 1]) i++;
-  // a ogni halving la somma emessa e' 21 mln x (1 - 2^-i): e' la serie geometrica
-  const inizio = 21e6 * (1 - Math.pow(2, -i));
-  const fine = 21e6 * (1 - Math.pow(2, -(i + 1)));
-  const g0 = HALVING[i], g1 = i + 1 < HALVING.length ? HALVING[i + 1] : g0 + 1458;
-  const dentro = Math.max(0, Math.min(1, (giorni - g0) / (g1 - g0)));
-  return Math.min(21e6, inizio + (fine - inizio) * dentro);
-}
-
-// Quanto varrebbe un bitcoin se tutta la massa monetaria americana ci stesse
-// dentro: dollari per bitcoin, la stessa unita' del prezzo. Serve da metro di
-// plausibilita' — non da previsione — e per questo si puo' disegnare sullo
-// stesso asse senza inventare una seconda scala.
-function m2PerBitcoin(giorni) { return m2Al(giorni) * 1e9 / supplyBTC(giorni); }
-
-// L'anno in cui una linea del corridoio arriva a valere tutta la massa
-// monetaria americana divisa per i bitcoin esistenti. Se non ci arriva entro
-// l'orizzonte, restituisce 0: e' il caso della linea su cui si tara l'obiettivo.
-function annoSfondamento(perc, annoFine) {
-  for (let a = NOW_YEAR; a <= annoFine; a++) {
-    const g = giorniDaGenesi() + (a - NOW_YEAR) * 365.25;
-    if (lineaCorridoio(g, perc) > m2PerBitcoin(g)) return a;
-  }
-  return 0;
-}
-
 // Primo anno intero coperto dai prezzi veri: la serie parte ad agosto 2010,
 // quindi il 2010 sarebbe un anno mozzo e il grafico comincia dal successivo.
 const STORICO_ANNO_DA = new Date(GENESI + STORICO[0][0] * 86400000).getUTCFullYear() + 1;
@@ -749,15 +677,13 @@ function grafico(base, cambio) {
   const annoFine = NOW_YEAR + (base.etaFine - base.eta);
   const annoAsseDa = STORICO_ANNO_DA;
   const px = a => ML + (a - annoAsseDa) / (annoFine - annoAsseDa) * (W - ML - MR);
-  // Il fondo scala e' il punto piu' alto della curva, non il suo ultimo punto:
-  // in unita' di M2 il massimo cade verso il 2040 e la banda usciva dal riquadro.
-  // Va calcolato nella stessa unita' dei dati, cambio compreso: prima era in
+  // Il fondo scala e' il punto piu' alto della curva, non il suo ultimo punto,
+  // e va calcolato nella stessa unita' dei dati, cambio compreso: prima era in
   // dollari mentre i punti erano in euro, e lasciava un 13% vuoto in cima.
   let maxP = 0;
   for (let a = annoAsseDa; a <= annoFine; a++) {
     const g = giorniDaGenesi() + (a - NOW_YEAR) * 365.25;
-    maxP = Math.max(maxP, lineaCorridoio(g, SCENARI[2].perc) * cambio,
-                          m2PerBitcoin(g) * cambio);
+    maxP = Math.max(maxP, lineaCorridoio(g, SCENARI[2].perc) * cambio);
   }
   const minP = 0.05;
   const py = v => {
@@ -774,12 +700,6 @@ function grafico(base, cambio) {
     return `${px(a).toFixed(1)},${py(lineaCorridoio(g, perc) * cambio).toFixed(1)}`;
   });
   const sup = linea(SCENARI[0].perc), cen = linea(SCENARI[1].perc), res = linea(SCENARI[2].perc);
-  // Il tetto: tutta la massa monetaria americana divisa per i bitcoin che
-  // esistono. Stessa unita' del prezzo, quindi stesso asse.
-  const tetto = anni.map(a => {
-    const g = giorniDi(a);
-    return `${px(a).toFixed(1)},${py(m2PerBitcoin(g) * cambio).toFixed(1)}`;
-  });
   // La mediana si spezza al 2040: prima è il modello, dopo è la prosecuzione.
   const iLimite = Math.max(1, anni.findIndex(a => a >= ANNO_LIMITE));
   const cenModello = cen.slice(0, iLimite + 1), cenOltre = cen.slice(iLimite);
@@ -810,7 +730,6 @@ function grafico(base, cambio) {
           <path d="${banda}" class="g-banda" />
           <polyline points="${cenModello.join(" ")}" class="g-centro" />
           <polyline points="${cenOltre.join(" ")}" class="g-centro-oltre" />
-          <polyline points="${tetto.join(" ")}" class="g-tetto" />
           <polyline points="${st.join(" ")}" class="g-storico" />
           ${(() => {
             const xl = px(ANNO_LIMITE);
@@ -864,18 +783,6 @@ function grafico(base, cambio) {
           <span class="g-leg"><i class="l-banda"></i>corridoio, 5°–95° percentile</span>
           <span class="g-leg"><i class="l-centro"></i>mediana, fino al ${ANNO_LIMITE}</span>
           <span class="g-leg"><i class="l-oltre"></i>dopo: solo carovita</span>
-          <span class="g-leg"><i class="l-tetto"></i>tutta M2 americana per bitcoin esistente</span>
-          ${(() => {
-            // La linea viola da sola non dice niente: questa riga la rende un metro.
-            const g = giorniDaGenesi();
-            const quota = base.prezzoOggi / (m2PerBitcoin(g) * cambio);
-            const sf = SCENARI.map(sc => annoSfondamento(sc.perc, annoFine));
-            return `<span class="g-tetto-nota">oggi Bitcoin ne vale il
-              <b>${(quota * 100).toFixed(1).replace(".", ",")}%</b> ·
-              ${sf[RIFERIMENTO] ? `il fondo del corridoio la supera nel ${sf[RIFERIMENTO]}` : `il fondo del corridoio non la raggiunge entro il ${annoFine}`},
-              ${sf[1] ? `la mediana nel ${sf[1]}` : "la mediana no"},
-              ${sf[2] ? `il tetto già nel ${sf[2]}` : "il tetto nemmeno"}</span>`;
-          })()}
           <span class="g-scala">prezzi in scala logaritmica</span>
         </figcaption>
       </figure>
