@@ -483,58 +483,6 @@ function fabbisogno(p, linea) {
 }
 
 /**
- * IL PASSATO, COI PREZZI VERI.
- *
- * «Se avessi cominciato nel 2019, quanti bitcoin avrei oggi?» — e la risposta
- * NON usa il modello. La curva è tarata sui dati fino a oggi, quindi per il
- * 2019 «conosce il futuro»: usarla sarebbe finzione, e sbaglia i bitcoin
- * accumulati fra il −31% e il +38% a seconda del periodo (misurato).
- * Qui si usano i prezzi che Bitcoin ha avuto davvero, quelli della linea
- * bianca del grafico.
- *
- * `cambio` porta i dollari della serie storica nella valuta dell'utente. È il
- * cambio di oggi applicato a tutto il passato: un'approssimazione, dichiarata
- * in pagina, che sposta il risultato di qualche punto percentuale — molto
- * meno del rumore che introdurrebbe il modello.
- */
-function prezzoStoricoAl(giorni) {
-  // Il prezzo più vicino nella serie: i punti non sono equispaziati (la coda
-  // dell'ultimo anno arriva da CoinGecko più densa), quindi non si può
-  // scorrere la serie come se fosse un calendario.
-  let migliore = null, distanza = Infinity;
-  for (const [g, p] of STORICO) {
-    const d = Math.abs(g - giorni);
-    if (d < distanza) { distanza = d; migliore = p; }
-  }
-  return migliore;
-}
-
-function accumuloStorico(annoDa, mensile, cambio) {
-  if (!(mensile > 0) || !(annoDa > 0)) return null;
-  // Prima della serie non ci sono prezzi da usare: chi digita 2005 nel campo
-  // (min/max nell'HTML non impediscono di scriverlo) otterrebbe mezzo milione
-  // di BTC comprati a 0,07 $, cifra falsa. Si parte dal primo anno coperto.
-  if (annoDa < STORICO_ANNO_DA) return null;
-  const oggi = giorniDaGenesi();
-  const inizio = (Date.UTC(annoDa, 0, 1) - GENESI) / 86400000;
-  if (inizio >= oggi) return null;
-
-  // Un versamento al mese, contato sul calendario e non sui punti della serie:
-  // prima si contava un acquisto per punto, e con la coda densa dell'ultimo
-  // anno risultavano 106 versamenti invece di 92.
-  const mesi = Math.floor((oggi - inizio) / (365.25 / 12));
-  let btc = 0;
-  for (let m = 0; m < mesi; m++) {
-    const prezzo = prezzoStoricoAl(inizio + m * (365.25 / 12)) * cambio;
-    if (prezzo > 0) btc += mensile / prezzo;
-  }
-  if (!mesi || !btc) return null;
-  const versato = mensile * mesi;
-  return { btc, versato, versamenti: mesi, mesi,
-           costoMedio: versato / btc, anni: mesi / 12 };
-}
-
-/**
  * LA DOMANDA INVERSA: verso quello che posso, cosa ottengo?
  *
  * Il tool risponde «servono 2.166 € al mese», cifra che quasi nessuno può
@@ -708,7 +656,7 @@ function applicaPrezzoLive() {
 // mentre scrivi: niente pulsante fra la domanda e la risposta.
 // ------------------------------------------------------------
 const $ = id => document.getElementById(id);
-const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto"), $etaFine = $("etaFine"), $disponibile = $("disponibile"), $annoDa = $("annoDa");
+const $paese = $("paese"), $eta = $("eta"), $etaInizio = $("etaInizio"), $netto = $("netto"), $etaFine = $("etaFine"), $disponibile = $("disponibile");
 const $prezzo = $("prezzoOggi"), $stack = $("stack");
 const $grafico = $("grafico"), $corridoio = $("corridoio"), $verdetto = $("verdetto");
 
@@ -777,7 +725,6 @@ function leggiInput() {
     // Il corridoio è in dollari: serve il cambio per portarlo nella valuta locale.
     cambioUsd: prezziLive.usd ? parseFloat($prezzo.value) / prezziLive.usd : null,
     disponibile: parseFloat($disponibile.value || "0"),
-    annoDa: parseInt($annoDa.value, 10) || 0,
   };
 }
 
@@ -882,19 +829,6 @@ function grafico(base, cambio) {
               ? `<line x1="${xl.toFixed(1)}" y1="${MT}" x2="${xl.toFixed(1)}" y2="${H - MB}" class="g-limite" />`
               : "";
           })()}
-          ${(() => {
-            // Il secondo segno: da quando compri. Sta a sinistra di oggi e
-            // lavora sui prezzi veri, non sul modello.
-            if (!(base.annoDa > 0) || base.annoDa >= Math.floor(oggiFraz)) return "";
-            const xd = px(base.annoDa);
-            if (xd < ML || xd > W - MR) return "";
-            return `<line x1="${xd.toFixed(1)}" y1="${MT}" x2="${xd.toFixed(1)}" y2="${H - MB}" class="g-compro" />
-              <g class="g-maniglia g-maniglia-passato" transform="translate(${xd.toFixed(1)},${MT})">
-                <circle r="11" /><path d="M-4 -4 L-8 0 L-4 4 M4 -4 L8 0 L4 4" />
-              </g>
-              <rect class="g-presa g-presa-passato" x="${(xd - 22).toFixed(1)}" y="${MT}" width="44" height="${H - MT - MB}" />
-              <text x="${(xd + 10).toFixed(1)}" y="${MT + 26}" class="g-nota-compro">compro dal ${base.annoDa} ⇄</text>`;
-          })()}
           <line x1="${inizioX.toFixed(1)}" y1="${MT}" x2="${inizioX.toFixed(1)}" y2="${H - MB}" class="g-inizio" />
           ${(() => {
             // L'etichetta sta accanto alla maniglia, in basso: è la cosa che
@@ -985,30 +919,6 @@ function render() {
   const cambio = base.cambioUsd || CAMBIO_RIPIEGO;
   const annoInizio = NOW_YEAR + r.attesa;
 
-  // — Il passato: cosa sarebbe successo cominciando prima. Sta nel pannello,
-  // accanto alla rata da versare: è il termine di confronto naturale.
-  let passatoBox = "";
-  if (base.annoDa > 0 && base.annoDa < NOW_YEAR) {
-    const rata = base.disponibile > 0 ? base.disponibile : 500;
-    const st = accumuloStorico(base.annoDa, rata, cambio);
-    if (st) {
-      const valoreOggi = st.btc * base.prezzoOggi;
-      const guadagno = valoreOggi / st.versato - 1;
-      passatoBox = `
-        <div class="passato">
-          <p class="passato-riga">Dal <b>${base.annoDa}</b>, ${c.sym} ${fmt(rata)} al mese:
-            <b class="k">${fmtBTC(st.btc)} BTC</b></p>
-          <p class="passato-conti">${c.sym} ${fmt(st.versato)} versati in
-            ${st.mesi < 24 ? st.mesi + " mesi" : inAnni(Math.round(st.anni))}, oggi
-            <b>${c.sym} ${fmt(valoreOggi)}</b>
-            (${guadagno >= 0 ? "+" : "−"}${Math.abs(guadagno * 100).toFixed(0)}%,
-            costo medio ${c.sym} ${fmt(st.costoMedio)})</p>
-          <button type="button" id="usaPassato" class="badge badge-live">usa questi ${fmtBTC(st.btc)} BTC</button>
-          <span class="passato-nota">prezzi reali, non del modello</span>
-        </div>`;
-    }
-  }
-
   // — Il numero
   const testa = `
     <div class="verdetto">
@@ -1036,7 +946,6 @@ function render() {
             : `arrivi a <b>${c.sym} ${fmt(ott)}</b> netti l'anno, non ${c.sym} ${fmt(base.nettoAnnuo)}.`}
         </p>`;
       })()}
-      ${passatoBox}
     </div>`;
 
   // — Dove sta il prezzo, adesso: la fascia sotto il grafico
@@ -1106,21 +1015,6 @@ function annoDallaX(svg, clientX) {
   return Math.round(da + frazione * (a - da));
 }
 
-// Il segno di sinistra muove l'anno da cui avresti comprato: sta nel passato,
-// quindi si ferma al primo anno intero di prezzi e all'anno scorso.
-function muovi(svg, clientX) {
-  (quale === "passato" ? trascinaPassato : trascina)(svg, clientX);
-}
-
-function trascinaPassato(svg, clientX) {
-  const anno = clamp(annoDallaX(svg, clientX), STORICO_ANNO_DA, NOW_YEAR - 1);
-  if (String(anno) === $annoDa.value) return;
-  $annoDa.value = anno;
-  adattaLarghezza($annoDa);
-  render();
-  scriviIndirizzo();
-}
-
 function trascina(svg, clientX) {
   const eta = clamp(
     parseInt($eta.value, 10) + (annoDallaX(svg, clientX) - NOW_YEAR),
@@ -1134,13 +1028,9 @@ function trascina(svg, clientX) {
 }
 
 let inTrascinamento = false;
-let quale = "futuro";
 document.addEventListener("pointerdown", e => {
   const svg = e.target.closest && e.target.closest(".gfx svg");
   if (!svg) return;
-  // Due segni, due prese: quella del passato muove l'anno da cui compri.
-  quale = e.target.closest(".g-presa-passato") || e.target.closest(".g-maniglia-passato")
-    ? "passato" : "futuro";
   // Col dito si parte solo dalla maniglia: altrimenti il tocco per scorrere
   // la pagina sposterebbe l'anno senza che tu l'abbia chiesto. Col mouse,
   // dove il gesto non è ambiguo, si può cliccare in qualunque punto.
@@ -1149,7 +1039,7 @@ document.addEventListener("pointerdown", e => {
   e.preventDefault();
   inTrascinamento = true;
   document.body.classList.add("sto-trascinando");
-  muovi(svg, e.clientX);
+  trascina(svg, e.clientX);
 });
 document.addEventListener("pointermove", e => {
   if (!inTrascinamento) return;
@@ -1161,7 +1051,7 @@ document.addEventListener("pointermove", e => {
   const svg = document.querySelector(".gfx svg");
   if (!svg) return;
   e.preventDefault();
-  muovi(svg, e.clientX);
+  trascina(svg, e.clientX);
 }, { passive: false });
 function fineTrascinamento() {
   inTrascinamento = false;
@@ -1188,24 +1078,6 @@ $("planner").addEventListener("change", e => {
   ridisegna();
 });
 
-// I limiti del campo dipendono dall'anno corrente e dalla serie: scriverli
-// nell'HTML li avrebbe congelati al 2025.
-$annoDa.min = STORICO_ANNO_DA;
-$annoDa.max = NOW_YEAR - 1;
-// Un anno fuori portata non va ignorato in silenzio: il campo lo riporta
-// dentro, cosi' si vede perche' il segno sul grafico non si e' mosso.
-$annoDa.addEventListener("change", () => {
-  const v = parseInt($annoDa.value, 10);
-  if (!v) return;
-  const dentro = clamp(v, STORICO_ANNO_DA, NOW_YEAR - 1);
-  if (dentro !== v) {
-    $annoDa.value = dentro;
-    adattaLarghezza($annoDa);
-    render();
-    scriviIndirizzo();
-  }
-});
-
 // L'interruttore dell'unita': cambia il disegno, non i conti.
 document.querySelectorAll(".uv").forEach(b => b.addEventListener("click", () => {
   if (VISTA === b.dataset.vista) return;
@@ -1224,20 +1096,6 @@ let attesaResize = null;
 window.addEventListener("resize", () => {
   clearTimeout(attesaResize);
   attesaResize = setTimeout(() => { adattaTutti(); render(); }, 150);
-});
-
-// Il passato riempie il campo dei bitcoin che hai: da lì continua il modello.
-$verdetto.addEventListener("click", e => {
-  if (!e.target.closest("#usaPassato")) return;
-  const cambio = prezziLive.usd ? parseFloat($prezzo.value) / prezziLive.usd : CAMBIO_RIPIEGO;
-  const st = accumuloStorico(parseInt($annoDa.value, 10),
-    parseFloat($disponibile.value || "0") > 0 ? parseFloat($disponibile.value) : 500, cambio);
-  if (!st) return;
-  $stack.value = parseFloat(st.btc.toFixed(8));
-  $annoDa.value = "";
-  adattaTutti();
-  render();
-  scriviIndirizzo();
 });
 
 $paese.addEventListener("change", aggiornaValuta);
@@ -1262,7 +1120,7 @@ $("badgePrezzo").addEventListener("click", () => caricaPrezzo(true).then(render)
 // Lo stato sta nell'indirizzo: ricaricando la pagina i dati restano, e il
 // link si può salvare o mandare a qualcuno. Niente cookie, niente server.
 // ------------------------------------------------------------
-const CAMPI_URL = { e: "eta", p: "paese", n: "netto", i: "etaInizio", f: "etaFine", b: "stack", d: "disponibile", a: "annoDa" };
+const CAMPI_URL = { e: "eta", p: "paese", n: "netto", i: "etaInizio", f: "etaFine", b: "stack", d: "disponibile" };
 
 function leggiIndirizzo() {
   const q = new URLSearchParams(location.search);

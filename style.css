@@ -520,16 +520,6 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
 .leve span { white-space: nowrap; }
 .leve b { color: var(--tax); font-family: var(--mono); }
 
-/* Il segno del passato: da quando avresti comprato. Ambra perché è un'altra
-   cosa dal verde del modello — qui i prezzi sono quelli veri. */
-.g-compro { stroke: var(--tax); stroke-width: 1; stroke-dasharray: 4 3; opacity: .8; }
-.g-nota-compro {
-  fill: var(--tax); font-family: var(--mono); font-size: 11px; font-weight: 600;
-  paint-order: stroke; stroke: var(--ink); stroke-width: 3px; stroke-linejoin: round;
-}
-.g-maniglia-passato circle { fill: var(--tax); }
-.g-presa-passato { fill: transparent; cursor: ew-resize; }
-
 /* L'unita' di misura del grafico: due voci, quella attiva accesa. */
 .unita-vista {
   display: flex;
@@ -553,35 +543,6 @@ body.sto-trascinando .g-inizio { stroke: var(--keep); }
   color: var(--ink);
   background: var(--keep);
   border-color: var(--keep);
-}
-
-/* Il passato: dentro il pannello, sotto la rata, come termine di confronto */
-.passato {
-  margin: .8rem 0 0;
-  padding-top: .7rem;
-  border-top: 1px solid var(--line);
-  font-size: .82rem;
-  line-height: 1.6;
-  color: var(--muted);
-}
-.passato p { margin: 0 0 .35rem; }
-.passato b { font-family: var(--mono); color: var(--text); }
-/* stesso colore del segno sul grafico: si capisce che parlano della stessa cosa */
-.passato b.k { color: var(--tax); }
-.passato-conti { font-size: .76rem; color: var(--faint); }
-.passato .badge {
-  display: inline-block;
-  margin: .1rem 0 .35rem;
-  min-height: 44px;      /* si tocca col dito, non col mouse */
-  line-height: 44px;
-  padding: 0 .7rem;
-}
-.passato-nota {
-  display: inline-block;
-  margin-left: .5rem;
-  font-size: .72rem;
-  color: var(--faint);
-  font-family: var(--mono);
 }
 
 /* Il corridoio: dove sta il prezzo fra il fondo e il tetto della fascia */
