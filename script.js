@@ -136,6 +136,46 @@ function m2Al(giorni) {
   return v0 + (v1 - v0) * (giorni - g0) / (g1 - g0);
 }
 
+// Quanti bitcoin esistevano (o esisteranno) a una certa data. Le prime cinque
+// date sono quelle vere degli halving; le successive stanno a 210.000 blocchi
+// l'una dall'altra, cioe' circa 1.458 giorni. Dentro ogni epoca l'emissione e'
+// costante, quindi fra un halving e l'altro si interpola.
+const HALVING = (() => {
+  const g = [Date.UTC(2009, 0, 3), Date.UTC(2012, 10, 28), Date.UTC(2016, 6, 9),
+             Date.UTC(2020, 4, 11), Date.UTC(2024, 3, 20)]
+            .map(d => (d - GENESI) / 86400000);
+  while (g.length < 34) g.push(g[g.length - 1] + 1458);   // fino oltre il 2140
+  return g;
+})();
+
+function supplyBTC(giorni) {
+  let i = 0;
+  while (i < HALVING.length - 1 && giorni >= HALVING[i + 1]) i++;
+  // a ogni halving la somma emessa e' 21 mln x (1 - 2^-i): e' la serie geometrica
+  const inizio = 21e6 * (1 - Math.pow(2, -i));
+  const fine = 21e6 * (1 - Math.pow(2, -(i + 1)));
+  const g0 = HALVING[i], g1 = i + 1 < HALVING.length ? HALVING[i + 1] : g0 + 1458;
+  const dentro = Math.max(0, Math.min(1, (giorni - g0) / (g1 - g0)));
+  return Math.min(21e6, inizio + (fine - inizio) * dentro);
+}
+
+// Quanto varrebbe un bitcoin se tutta la massa monetaria americana ci stesse
+// dentro: dollari per bitcoin, la stessa unita' del prezzo. Serve da metro di
+// plausibilita' — non da previsione — e per questo si puo' disegnare sullo
+// stesso asse senza inventare una seconda scala.
+function m2PerBitcoin(giorni) { return m2Al(giorni) * 1e9 / supplyBTC(giorni); }
+
+// L'anno in cui una linea del corridoio arriva a valere tutta la massa
+// monetaria americana divisa per i bitcoin esistenti. Se non ci arriva entro
+// l'orizzonte, restituisce 0: e' il caso della linea su cui si tara l'obiettivo.
+function annoSfondamento(perc, annoFine) {
+  for (let a = NOW_YEAR; a <= annoFine; a++) {
+    const g = giorniDaGenesi() + (a - NOW_YEAR) * 365.25;
+    if (lineaCorridoio(g, perc) > m2PerBitcoin(g)) return a;
+  }
+  return 0;
+}
+
 // Il fattore che riporta un prezzo di allora alla massa monetaria di oggi:
 // «quel prezzo, se i dollari fossero quelli di adesso».
 function inM2(giorni) { return m2Al(giorniDaGenesi()) / m2Al(giorni); }
@@ -780,7 +820,8 @@ function grafico(base, cambio) {
   let maxP = 0;
   for (let a = annoAsseDa; a <= annoFine; a++) {
     const g = giorniDaGenesi() + (a - NOW_YEAR) * 365.25;
-    maxP = Math.max(maxP, lineaCorridoio(g, SCENARI[2].perc) * cambio * fatM2(g));
+    maxP = Math.max(maxP, lineaCorridoio(g, SCENARI[2].perc) * cambio * fatM2(g),
+                          m2PerBitcoin(g) * cambio * fatM2(g));
   }
   const minP = 0.05;
   const py = v => {
@@ -797,6 +838,12 @@ function grafico(base, cambio) {
     return `${px(a).toFixed(1)},${py(lineaCorridoio(g, perc) * cambio * fatM2(g)).toFixed(1)}`;
   });
   const sup = linea(SCENARI[0].perc), cen = linea(SCENARI[1].perc), res = linea(SCENARI[2].perc);
+  // Il tetto: tutta la massa monetaria americana divisa per i bitcoin che
+  // esistono. Stessa unita' del prezzo, quindi stesso asse.
+  const tetto = anni.map(a => {
+    const g = giorniDi(a);
+    return `${px(a).toFixed(1)},${py(m2PerBitcoin(g) * cambio * fatM2(g)).toFixed(1)}`;
+  });
   // La mediana si spezza al 2040: prima è il modello, dopo è la prosecuzione.
   const iLimite = Math.max(1, anni.findIndex(a => a >= ANNO_LIMITE));
   const cenModello = cen.slice(0, iLimite + 1), cenOltre = cen.slice(iLimite);
@@ -827,6 +874,7 @@ function grafico(base, cambio) {
           <path d="${banda}" class="g-banda" />
           <polyline points="${cenModello.join(" ")}" class="g-centro" />
           <polyline points="${cenOltre.join(" ")}" class="g-centro-oltre" />
+          <polyline points="${tetto.join(" ")}" class="g-tetto" />
           <polyline points="${st.join(" ")}" class="g-storico" />
           ${(() => {
             const xl = px(ANNO_LIMITE);
@@ -893,6 +941,18 @@ function grafico(base, cambio) {
           <span class="g-leg"><i class="l-banda"></i>corridoio, 5°–95° percentile</span>
           <span class="g-leg"><i class="l-centro"></i>mediana, fino al ${ANNO_LIMITE}</span>
           <span class="g-leg"><i class="l-oltre"></i>dopo: solo carovita</span>
+          <span class="g-leg"><i class="l-tetto"></i>tutta M2 americana per bitcoin esistente</span>
+          ${(() => {
+            // La linea viola da sola non dice niente: questa riga la rende un metro.
+            const g = giorniDaGenesi();
+            const quota = base.prezzoOggi / (m2PerBitcoin(g) * cambio);
+            const sf = SCENARI.map(sc => annoSfondamento(sc.perc, annoFine));
+            return `<span class="g-tetto-nota">oggi Bitcoin ne vale il
+              <b>${(quota * 100).toFixed(1).replace(".", ",")}%</b> ·
+              ${sf[RIFERIMENTO] ? `il fondo del corridoio la supera nel ${sf[RIFERIMENTO]}` : `il fondo del corridoio non la raggiunge entro il ${annoFine}`},
+              ${sf[1] ? `la mediana nel ${sf[1]}` : "la mediana no"},
+              ${sf[2] ? `il tetto già nel ${sf[2]}` : "il tetto nemmeno"}</span>`;
+          })()}
           <span class="g-scala">${VISTA === "m2"
             ? `prezzi riportati alla massa monetaria di oggi (M2 Stati Uniti; oltre l'ultimo dato, proiettata al +${(M2_CRESCITA * 100).toFixed(1).replace(".", ",")}%/anno, la sua media dal 2010) · scala logaritmica`
             : "prezzi in scala logaritmica"}</span>
